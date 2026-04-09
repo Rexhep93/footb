@@ -3,8 +3,7 @@
    API: football-data.org v4
    ============================================ */
 
-const API_TOKEN = 'a5121338cb264baaa294099596feaf92';
-const API_BASE  = 'https://api.football-data.org/v4';
+const API_BASE  = 'https://football-proxy.rexhep93.workers.dev';
 
 // League IDs for football-data.org
 const LEAGUES = {
@@ -42,9 +41,7 @@ const detailBackdrop   = $('detailBackdrop');
 
 // ---- API fetch ----
 async function apiFetch(path) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { 'X-Auth-Token': API_TOKEN }
-  });
+  const res = await fetch(`${API_BASE}${path}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `HTTP ${res.status}`);
