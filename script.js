@@ -31,47 +31,56 @@ function buildNav(){
 }
 
 function statusOf(m){
-  const s=m.status;
-  if(s==='IN_PLAY'||s==='PAUSED'||s==='LIVE')return{txt:m.minute?m.minute+"'":'LIVE',cls:'live'};
-  if(s==='FINISHED')return{txt:'FT',cls:'ft'};
-  if(s==='SCHEDULED'||s==='TIMED'){
-    return{txt:new Date(m.utcDate).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),cls:''};
-  }
-  return{txt:s,cls:''};
+  const s = m.fixture.status.short;
+  if (s === '1H' || s === '2H' || s === 'ET' || s === 'LIVE')
+    return { txt: m.fixture.status.elapsed ? m.fixture.status.elapsed + "'" : 'LIVE', cls: 'live' };
+  if (s === 'HT') return { txt: 'RUST', cls: 'live' };
+  if (s === 'FT' || s === 'AET' || s === 'PEN') return { txt: 'FT', cls: 'ft' };
+  if (s === 'NS' || s === 'TBD')
+    return { txt: new Date(m.fixture.date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }), cls: '' };
+  if (s === 'PST') return { txt: 'UITGEST.', cls: '' };
+  if (s === 'CANC') return { txt: 'AFGEL.', cls: '' };
+  return { txt: s, cls: '' };
 }
 
 function scoreOf(m){
-  const h=m.score?.fullTime?.home,a=m.score?.fullTime?.away;
-  if(h==null||a==null)return '–';
+  const h = m.goals.home, a = m.goals.away;
+  if (h == null || a == null) return '–';
   return `${h} – ${a}`;
 }
 
 function render(matches){
-  const filtered=matches.filter(m=>ALLOWED.includes(m.competition?.code));
-  if(!filtered.length){app.innerHTML='<div class="empty">Geen wedstrijden op deze dag</div>';return;}
-  const groups={};
-  filtered.forEach(m=>{(groups[m.competition.code]=groups[m.competition.code]||[]).push(m);});
-  const order={IN_PLAY:0,PAUSED:0,LIVE:0,SCHEDULED:1,TIMED:1,FINISHED:2};
-  Object.values(groups).forEach(g=>g.sort((a,b)=>(order[a.status]??3)-(order[b.status]??3)||new Date(a.utcDate)-new Date(b.utcDate)));
-  const sorted=ALLOWED.filter(c=>groups[c]);
-  app.innerHTML=sorted.map(c=>`
+  if (!matches.length) { app.innerHTML = '<div class="empty">Geen wedstrijden op deze dag</div>'; return; }
+  const groups = {};
+  matches.forEach(m => {
+    const code = m.league.code;
+    (groups[code] = groups[code] || []).push(m);
+  });
+  const liveStates = ['1H','2H','HT','ET','LIVE'];
+  const order = s => liveStates.includes(s) ? 0 : (s === 'NS' || s === 'TBD' ? 1 : 2);
+  Object.values(groups).forEach(g => g.sort((a,b) =>
+    order(a.fixture.status.short) - order(b.fixture.status.short) ||
+    new Date(a.fixture.date) - new Date(b.fixture.date)
+  ));
+  const sorted = ALLOWED.filter(c => groups[c]);
+  app.innerHTML = sorted.map(c => `
     <section class="comp">
-      <h2>${COMP_NAMES[c]||c}</h2>
+      <h2>${COMP_NAMES[c] || c}</h2>
       <div class="matches">
-        ${groups[c].map(m=>{
-          const st=statusOf(m);
+        ${groups[c].map(m => {
+          const st = statusOf(m);
           return `<div class="match">
             <div class="team home">
-              ${m.homeTeam.crest?`<img src="${m.homeTeam.crest}" alt="">`:''}
-              <span>${m.homeTeam.shortName||m.homeTeam.name}</span>
+              ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" alt="">` : ''}
+              <span>${m.teams.home.name}</span>
             </div>
             <div class="score">
               <div class="nums">${scoreOf(m)}</div>
               <span class="status ${st.cls}">${st.txt}</span>
             </div>
             <div class="team away">
-              <span>${m.awayTeam.shortName||m.awayTeam.name}</span>
-              ${m.awayTeam.crest?`<img src="${m.awayTeam.crest}" alt="">`:''}
+              <span>${m.teams.away.name}</span>
+              ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" alt="">` : ''}
             </div>
           </div>`;
         }).join('')}
