@@ -1,11 +1,24 @@
-const CACHE_NAME = 'live-score-v1';
-const urlsToCache = ['./', './index.html', './style.css', './script.js', './api.js', './manifest.json'];
+const CACHE = 'scores-v1';
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
+    e.waitUntil(
+        caches.open(CACHE).then(cache => 
+            cache.addAll([
+                '/',
+                '/index.html',
+                '/css/style.css',
+                '/js/script.js',
+                '/js/api.js',
+                '/manifest.json'
+            ])
+        )
+    );
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('football-data.org')) return;
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    e.respondWith(
+        caches.match(e.request).then(response => 
+            response || fetch(e.request)
+        )
+    );
 });
