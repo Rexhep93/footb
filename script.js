@@ -1,118 +1,142 @@
-class LiveScoreApp {
-  constructor() {
-    this.container = document.getElementById('matchesContainer');
-    this.lastUpdatedSpan = document.getElementById('lastUpdated');
-    this.liveIndicator = document.getElementById('liveIndicator');
-    this.dateDisplay = document.getElementById('dateDisplay');
-    this.errorToast = document.getElementById('errorToast');
-    this.updateTimer = null;
-    this.init();
-  }
+import { fetchTodaysMatches } from './api.js';
 
-  async init() {
-    this.setupServiceWorker();
-    this.displayCurrentDate();
-    await this.loadMatches();
-    this.startLiveRefresh();
-  }
+let allMatches = [];
+let currentFilter = 'all';
 
-  setupServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js');
-    }
-  }
+const matchesList = document.getElementById('matches-list');
+const emptyState = document.getElementById('empty-state');
+const lastUpdated = document.getElementById('last-updated');
+const refreshBtn = document.getElementById('refresh-btn');
+const tabs = document.querySelectorAll('.tab');
+const toast = document.getElementById('toast');
 
-  displayCurrentDate() {
-    const now = new Date();
-    this.dateDisplay.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  }
-
-  async loadMatches() {
-    try {
-      this.showLoading();
-      const matches = await fetchTodaysMatches();
-      const transformed = matches.map(m => transformMatch(m));
-      this.renderMatches(transformed);
-      this.updateLastUpdated();
-      this.updateLiveStatus(transformed);
-    } catch (error) {
-      this.showError('Unable to load matches. Check API key or network.');
-      this.container.innerHTML = `<div class="empty-state">⚠️ Could not load matches</div>`;
-    }
-  }
-
-  showLoading() {
-    this.container.innerHTML = '<div class="loading-state">Loading matches...</div>';
-  }
-
-  renderMatches(matches) {
-    if (!matches.length) {
-      this.container.innerHTML = `<div class="empty-state">No matches today</div>`;
-      return;
-    }
-
-    const sorted = [...matches].sort((a, b) => {
-      if (a.status === 'LIVE' && b.status !== 'LIVE') return -1;
-      if (a.status !== 'LIVE' && b.status === 'LIVE') return 1;
-      return 0;
-    });
-
-    this.container.innerHTML = sorted.map(m => this.createMatchCard(m)).join('');
-  }
-
-  createMatchCard(m) {
-    const isLive = m.status === 'LIVE' || m.status === 'IN_PLAY' || m.status === 'PAUSED';
-    const isFinished = m.status === 'FINISHED';
-    const hasScore = m.homeScore !== null && m.awayScore !== null;
+function formatStatus(match) {
+    const status = match.status;
+    const minute = match.minute || '';
     
-    const statusText = isLive ? 'LIVE' : (isFinished ? 'FT' : m.status);
-    const statusClass = isLive ? 'live' : (isFinished ? 'finished' : '');
-    
-    const scoreDisplay = hasScore ? 
-      `<span class="team-score">${m.homeScore}</span><span class="score-separator">:</span><span class="team-score">${m.awayScore}</span>` : 
-      `<span class="team-score">-</span><span class="score-separator"></span><span class="team-score">-</span>`;
-
-    const timeDisplay = isLive ? `${m.minute || 'LIVE'}'` : 
-                       (isFinished ? 'Full Time' : 
-                       new Date(m.utcDate).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}));
-
-    return `
-      <div class="match-card">
-        <div class="match-competition">
-          ${m.competition}
-          <span class="status-dot ${statusClass}">${statusText}</span>
-        </div>
-        <div class="match-teams">
-          <div class="team"><span class="team-name">${m.homeTeam}</span></div>
-          <div style="display: flex; align-items: center;">${scoreDisplay}</div>
-          <div class="team"><span class="team-name">${m.awayTeam}</span></div>
-        </div>
-        <div class="match-time">${timeDisplay}</div>
-      </div>`;
-  }
-
-  updateLastUpdated() {
-    this.lastUpdatedSpan.textContent = `Updated ${new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'})}`;
-  }
-
-  updateLiveStatus(matches) {
-    this.liveIndicator.style.opacity = matches.some(m => m.status === 'LIVE' || m.status === 'IN_PLAY') ? '1' : '0.5';
-  }
-
-  startLiveRefresh() {
-    this.updateTimer = setInterval(async () => {
-      const matches = await fetchTodaysMatches();
-      this.renderMatches(matches.map(m => transformMatch(m)));
-      this.updateLastUpdated();
-      this.updateLiveStatus(matches);
-    }, 60000);
-  }
-
-  showError(msg) {
-    this.errorToast.textContent = msg;
-    this.errorToast.classList.add('show');
-    setTimeout(() => this.errorToast.classList.remove('show'), 3000);
-  }
+    if (status === 'LIVE' || status === 'IN_PLAY') {
+        return `<span class="live-dot"></span>LIVE${minute ? ` • ${minute}'` : ''}`;
+    }
+    if (status === 'FINISHED' || status === 'FT') return 'FT';
+    if (status === 'PAUSED') return 'HT';
+    if (status === 'SCHEDULED' || status === 'TIMED') {
+        const date = new Date(match.utcDate);
+        return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    }
+    return status;
 }
 
-new LiveScoreApp();
+function createMatchCard(match) {
+    const home = match.homeTeam;
+    const away = match.awayTeam;
+    const isLive = match.status === 'LIVE' || match.status === 'IN_PLAY';
+    
+    const card = document.createElement('div');
+    card.className = `match-card ${isLive ? 'live' : ''}`;
+    
+    const scoreHTML = match.score && match.score.fullTime 
+        ? `<div class="score">${match.score.fullTime.home ?? '-'} - ${match.score.fullTime.away ?? '-'}</div>`
+        : `<div class="score">– –</div>`;
+    
+    card.innerHTML = `
+        <div class="competition">
+            <img src="${match.competition.emblem}" alt="">
+            ${match.competition.name}
+        </div>
+        <div class="match-content">
+            <div class="team">
+                <img src="${home.crest || 'https://crests.football-data.org/blank.png'}" class="crest" alt="">
+                <div class="team-name">${home.name}</div>
+            </div>
+            
+            <div class="score-container">
+                ${scoreHTML}
+                <div class="status">${formatStatus(match)}</div>
+            </div>
+            
+            <div class="team right">
+                <div class="team-name">${away.name}</div>
+                <img src="${away.crest || 'https://crests.football-data.org/blank.png'}" class="crest" alt="">
+            </div>
+        </div>
+    `;
+    return card;
+}
+
+function renderMatches(matches) {
+    matchesList.innerHTML = '';
+    
+    const filtered = currentFilter === 'live' 
+        ? matches.filter(m => m.status === 'LIVE' || m.status === 'IN_PLAY')
+        : matches;
+    
+    if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+    }
+    
+    emptyState.classList.add('hidden');
+    
+    // Sorteer: live eerst, dan tijd
+    filtered.sort((a, b) => {
+        const aLive = a.status === 'LIVE' || a.status === 'IN_PLAY';
+        const bLive = b.status === 'LIVE' || b.status === 'IN_PLAY';
+        if (aLive && !bLive) return -1;
+        if (!aLive && bLive) return 1;
+        return new Date(a.utcDate) - new Date(b.utcDate);
+    });
+    
+    filtered.forEach(match => {
+        matchesList.appendChild(createMatchCard(match));
+    });
+}
+
+async function loadMatches() {
+    try {
+        refreshBtn.style.opacity = '0.3';
+        const matches = await fetchTodaysMatches();
+        allMatches = matches;
+        renderMatches(allMatches);
+        
+        const now = new Date();
+        lastUpdated.textContent = `Bijgewerkt ${now.getHours()}:${now.getMinutes().toString().padStart(2,'0')}`;
+        
+        showToast('Wedstrijden geladen');
+    } catch (e) {
+        console.error(e);
+        showToast('Fout: controleer API-sleutel', true);
+    } finally {
+        refreshBtn.style.opacity = '1';
+    }
+}
+
+function showToast(msg, error = false) {
+    toast.textContent = msg;
+    toast.style.background = error ? '#ff3b30' : '#1c1c1e';
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+// Event listeners
+refreshBtn.addEventListener('click', loadMatches);
+
+tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.filter;
+        renderMatches(allMatches);
+    });
+});
+
+// Service worker registratie + initial load
+async function init() {
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
+    await loadMatches();
+    // Poll elke 60 seconden (binnen free tier limiet)
+    setInterval(loadMatches, 60000);
+}
+
+document.addEventListener('DOMContentLoaded', init);
