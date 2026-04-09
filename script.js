@@ -3,7 +3,7 @@ import {getMatches,ALLOWED} from './api.js';
 const app=document.getElementById('app');
 const nav=document.getElementById('dateNav');
 
-const COMP_NAMES={PL:'Premier League',BL1:'Bundesliga',SA:'Serie A',PD:'La Liga',FL1:'Ligue 1',DED:'Eredivisie',PPL:'Primeira Liga',ELC:'Championship',BSA:'Brasileirão',CL:'Champions League',EC:'EK',WC:'WK'};
+const COMP_NAMES={PL:'Premier League',BL1:'Bundesliga',SA:'Serie A',PD:'La Liga',FL1:'Ligue 1',DED:'Eredivisie',PPL:'Primeira Liga',ELC:'Championship',BSA:'Brasileirão',CL:'Champions League',EC:'EK',WC:'WK',CLI:'Copa Libertadores'};
 
 const fmt=d=>d.toISOString().slice(0,10);
 const startOfDay=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
