@@ -1,5 +1,3 @@
-import { fetchTodaysMatches, transformMatch } from './api.js';
-
 class LiveScoreApp {
   constructor() {
     this.container = document.getElementById('matchesContainer');
@@ -8,7 +6,6 @@ class LiveScoreApp {
     this.dateDisplay = document.getElementById('dateDisplay');
     this.errorToast = document.getElementById('errorToast');
     this.updateTimer = null;
-    
     this.init();
   }
 
@@ -27,15 +24,14 @@ class LiveScoreApp {
 
   displayCurrentDate() {
     const now = new Date();
-    const options = { weekday: 'long', month: 'long', day: 'numeric' };
-    this.dateDisplay.textContent = now.toLocaleDateString('en-US', options);
+    this.dateDisplay.textContent = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   }
 
   async loadMatches() {
     try {
       this.showLoading();
       const matches = await fetchTodaysMatches();
-      const transformed = matches.map(transformMatch);
+      const transformed = matches.map(m => transformMatch(m));
       this.renderMatches(transformed);
       this.updateLastUpdated();
       this.updateLiveStatus(transformed);
@@ -73,14 +69,12 @@ class LiveScoreApp {
     const statusClass = isLive ? 'live' : (isFinished ? 'finished' : '');
     
     const scoreDisplay = hasScore ? 
-      `<span class="team-score">${m.homeScore}</span>
-       <span class="score-separator">:</span>
-       <span class="team-score">${m.awayScore}</span>` : 
+      `<span class="team-score">${m.homeScore}</span><span class="score-separator">:</span><span class="team-score">${m.awayScore}</span>` : 
       `<span class="team-score">-</span><span class="score-separator"></span><span class="team-score">-</span>`;
 
     const timeDisplay = isLive ? `${m.minute || 'LIVE'}'` : 
                        (isFinished ? 'Full Time' : 
-                       new Date(m.utcDate).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit'}));
+                       new Date(m.utcDate).toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'}));
 
     return `
       <div class="match-card">
@@ -89,38 +83,28 @@ class LiveScoreApp {
           <span class="status-dot ${statusClass}">${statusText}</span>
         </div>
         <div class="match-teams">
-          <div class="team">
-            <span class="team-name">${m.homeTeam}</span>
-          </div>
-          <div style="display: flex; align-items: center;">
-            ${scoreDisplay}
-          </div>
-          <div class="team">
-            <span class="team-name">${m.awayTeam}</span>
-          </div>
+          <div class="team"><span class="team-name">${m.homeTeam}</span></div>
+          <div style="display: flex; align-items: center;">${scoreDisplay}</div>
+          <div class="team"><span class="team-name">${m.awayTeam}</span></div>
         </div>
         <div class="match-time">${timeDisplay}</div>
-      </div>
-    `;
+      </div>`;
   }
 
   updateLastUpdated() {
-    const time = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-    this.lastUpdatedSpan.textContent = `Updated ${time}`;
+    this.lastUpdatedSpan.textContent = `Updated ${new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'})}`;
   }
 
   updateLiveStatus(matches) {
-    const hasLive = matches.some(m => m.status === 'LIVE' || m.status === 'IN_PLAY');
-    this.liveIndicator.style.opacity = hasLive ? '1' : '0.5';
+    this.liveIndicator.style.opacity = matches.some(m => m.status === 'LIVE' || m.status === 'IN_PLAY') ? '1' : '0.5';
   }
 
   startLiveRefresh() {
     this.updateTimer = setInterval(async () => {
       const matches = await fetchTodaysMatches();
-      const transformed = matches.map(transformMatch);
-      this.renderMatches(transformed);
+      this.renderMatches(matches.map(m => transformMatch(m)));
       this.updateLastUpdated();
-      this.updateLiveStatus(transformed);
+      this.updateLiveStatus(matches);
     }, 60000);
   }
 
