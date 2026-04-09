@@ -16,37 +16,66 @@
 </head>
 <body>
 
+<div class="ambient">
+  <div class="ambient-blob a"></div>
+  <div class="ambient-blob b"></div>
+  <div class="ambient-blob c"></div>
+</div>
+
 <header id="topbar">
   <div class="topbar-bg"></div>
   <div class="topbar-row">
     <h1 class="title-large">Pitch</h1>
     <button class="icon-btn" aria-label="Profiel">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 21c0-4.2 3.4-7.5 7.5-7.5s7.5 3.3 7.5 7.5"/></svg>
     </button>
   </div>
   <nav id="dateNav" aria-label="Datum"></nav>
+  <div id="filterRow">
+    <button class="chip active" data-filter="all">Alle</button>
+    <button class="chip" data-filter="live">
+      <span class="live-dot"></span>Live
+    </button>
+    <button class="chip" data-filter="fav">Favorieten</button>
+  </div>
 </header>
 
 <main id="app">
-  <div class="loader-wrap"><div class="loader"></div></div>
+  <div id="skeleton">
+    <div class="skel-comp">
+      <div class="skel-head"></div>
+      <div class="skel-card">
+        <div class="skel-row"></div>
+        <div class="skel-row"></div>
+        <div class="skel-row"></div>
+      </div>
+    </div>
+    <div class="skel-comp">
+      <div class="skel-head"></div>
+      <div class="skel-card">
+        <div class="skel-row"></div>
+        <div class="skel-row"></div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <nav id="tabbar" aria-label="Hoofdnavigatie">
   <div class="tabbar-bg"></div>
   <button class="tab active" data-tab="today">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="3.5"/><path d="M16 3v4M8 3v4M3.5 10h17"/></svg>
     <span>Vandaag</span>
   </button>
   <button class="tab" data-tab="live">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>
     <span>Live</span>
   </button>
   <button class="tab" data-tab="leagues">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z"/><path d="M17 4h2.5a2 2 0 0 1 0 4H17M7 4H4.5a2 2 0 0 0 0 4H7M9 14v3M15 14v3M7 20h10"/></svg>
     <span>Competities</span>
   </button>
   <button class="tab" data-tab="search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4-4"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></svg>
     <span>Zoeken</span>
   </button>
 </nav>
