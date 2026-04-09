@@ -5,7 +5,7 @@ const nav=document.getElementById('dateNav');
 
 const COMP_NAMES={PL:'Premier League',BL1:'Bundesliga',SA:'Serie A',PD:'La Liga',FL1:'Ligue 1',DED:'Eredivisie',PPL:'Primeira Liga',ELC:'Championship',BSA:'Brasileirão',CL:'Champions League',EC:'EK',WC:'WK',CLI:'Copa Libertadores'};
 
-const fmt=d=>d.toISOString().slice(0,10);
+const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const startOfDay=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
 let today=startOfDay();
 let activeDate=fmt(today);
