@@ -2,101 +2,229 @@ import {getMatches,ALLOWED} from './api.js';
 
 const app=document.getElementById('app');
 const nav=document.getElementById('dateNav');
+const tabbar=document.getElementById('tabbar');
+const filterRow=document.getElementById('filterRow');
 
 const COMP_NAMES={PL:'Premier League',BL1:'Bundesliga',SA:'Serie A',PD:'La Liga',FL1:'Ligue 1',DED:'Eredivisie',PPL:'Primeira Liga',ELC:'Championship',BSA:'Brasileirão',CL:'Champions League',EC:'EK',WC:'WK',CLI:'Copa Libertadores'};
 
 const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const startOfDay=()=>{const d=new Date();d.setHours(0,0,0,0);return d;};
-let today=startOfDay();
-let activeDate=fmt(today);
+const today=startOfDay();
+const todayKey=fmt(today);
+let activeDate=todayKey;
+let activeFilter='all';
+let cachedMatches=[];
 
-function label(d){
-  const diff=Math.round((d-today)/86400000);
-  if(diff===0)return 'Vandaag';
-  if(diff===-1)return 'Gisteren';
-  if(diff===1)return 'Morgen';
-  return d.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'});
+function dayShort(d){
+  return d.toLocaleDateString('nl-NL',{weekday:'short'}).replace('.','').toUpperCase();
 }
 
 function buildNav(){
   const days=[];
-  for(let i=-2;i<=4;i++){const d=new Date(today);d.setDate(d.getDate()+i);days.push(d);}
+  for(let i=-3;i<=10;i++){const d=new Date(today);d.setDate(d.getDate()+i);days.push(d);}
   nav.innerHTML=days.map(d=>{
     const k=fmt(d);
-    return `<button class="date-btn${k===activeDate?' active':''}" data-date="${k}">${label(d)}</button>`;
+    const isToday=k===todayKey;
+    return `<button class="date-btn${k===activeDate?' active':''}${isToday?' today-marker':''}" data-date="${k}">
+      <span class="day">${isToday?'VAN':dayShort(d)}</span>
+      <span class="num">${d.getDate()}</span>
+    </button>`;
   }).join('');
   nav.querySelectorAll('.date-btn').forEach(b=>{
-    b.onclick=()=>{activeDate=b.dataset.date;buildNav();load();};
+    b.onclick=()=>{
+      if(b.dataset.date===activeDate)return;
+      activeDate=b.dataset.date;
+      buildNav();
+      haptic();
+      const active=nav.querySelector('.date-btn.active');
+      if(active)active.scrollIntoView({behavior:'smooth',inline:'center',block:'nearest'});
+      load();
+    };
   });
+  setTimeout(()=>{
+    const active=nav.querySelector('.date-btn.active');
+    if(active)active.scrollIntoView({behavior:'auto',inline:'center',block:'nearest'});
+  },0);
 }
 
 function statusOf(m){
-  const s = m.fixture.status.short;
-  if (s === '1H' || s === '2H' || s === 'ET' || s === 'LIVE')
-    return { txt: m.fixture.status.elapsed ? m.fixture.status.elapsed + "'" : 'LIVE', cls: 'live' };
-  if (s === 'HT') return { txt: 'RUST', cls: 'live' };
-  if (s === 'FT' || s === 'AET' || s === 'PEN') return { txt: 'FT', cls: 'ft' };
-  if (s === 'NS' || s === 'TBD')
-    return { txt: new Date(m.fixture.date).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }), cls: '' };
-  if (s === 'PST') return { txt: 'UITGEST.', cls: '' };
-  if (s === 'CANC') return { txt: 'AFGEL.', cls: '' };
-  return { txt: s, cls: '' };
+  const s=m.status;
+  if(s==='IN_PLAY'||s==='LIVE')return{txt:m.minute?m.minute+"'":'LIVE',cls:'live'};
+  if(s==='PAUSED')return{txt:'RUST',cls:'live'};
+  if(s==='FINISHED')return{txt:'FT',cls:'ft'};
+  if(s==='SCHEDULED'||s==='TIMED'){
+    return{txt:new Date(m.utcDate).toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit'}),cls:''};
+  }
+  if(s==='POSTPONED')return{txt:'UITG.',cls:''};
+  if(s==='CANCELLED')return{txt:'AFG.',cls:''};
+  return{txt:s,cls:''};
 }
 
 function scoreOf(m){
-  const h = m.goals.home, a = m.goals.away;
-  if (h == null || a == null) return '–';
+  const h=m.score?.fullTime?.home,a=m.score?.fullTime?.away;
+  if(h==null||a==null)return '–';
   return `${h} – ${a}`;
 }
 
+function isLive(m){
+  return m.status==='IN_PLAY'||m.status==='LIVE'||m.status==='PAUSED';
+}
+
+function applyFilter(matches){
+  if(activeFilter==='live')return matches.filter(isLive);
+  if(activeFilter==='fav')return [];
+  return matches;
+}
+
 function render(matches){
-  if (!matches.length) { app.innerHTML = '<div class="empty">Geen wedstrijden op deze dag</div>'; return; }
-  const groups = {};
-  matches.forEach(m => {
-    const code = m.league.code;
-    (groups[code] = groups[code] || []).push(m);
-  });
-  const liveStates = ['1H','2H','HT','ET','LIVE'];
-  const order = s => liveStates.includes(s) ? 0 : (s === 'NS' || s === 'TBD' ? 1 : 2);
-  Object.values(groups).forEach(g => g.sort((a,b) =>
-    order(a.fixture.status.short) - order(b.fixture.status.short) ||
-    new Date(a.fixture.date) - new Date(b.fixture.date)
-  ));
-  const sorted = ALLOWED.filter(c => groups[c]);
-  app.innerHTML = sorted.map(c => `
-    <section class="comp">
-      <h2>${COMP_NAMES[c] || c}</h2>
+  cachedMatches=matches;
+  const filtered=applyFilter(matches.filter(m=>ALLOWED.includes(m.competition?.code)));
+  if(!filtered.length){
+    let emoji='⚽️',title='Geen wedstrijden',sub='Probeer een andere datum';
+    if(activeFilter==='live'){emoji='🟢';title='Geen live wedstrijden';sub='Kom later terug voor de actie';}
+    if(activeFilter==='fav'){emoji='⭐️';title='Nog geen favorieten';sub='Volg teams om ze hier te zien';}
+    app.innerHTML=`<div class="empty"><span class="emoji">${emoji}</span>${title}<span class="sub">${sub}</span></div>`;
+    return;
+  }
+  const groups={};
+  filtered.forEach(m=>{(groups[m.competition.code]=groups[m.competition.code]||[]).push(m);});
+  const order={IN_PLAY:0,PAUSED:0,LIVE:0,SCHEDULED:1,TIMED:1,FINISHED:2};
+  Object.values(groups).forEach(g=>g.sort((a,b)=>(order[a.status]??3)-(order[b.status]??3)||new Date(a.utcDate)-new Date(b.utcDate)));
+  const sorted=ALLOWED.filter(c=>groups[c]);
+  app.innerHTML=sorted.map(c=>{
+    const list=groups[c];
+    const liveCount=list.filter(isLive).length;
+    return `<section class="comp">
+      <div class="comp-head">
+        <h2>${COMP_NAMES[c]||c}</h2>
+        <span class="meta">${liveCount?`${liveCount} LIVE`:`${list.length} ${list.length===1?'wedstrijd':'wedstrijden'}`}</span>
+      </div>
       <div class="matches">
-        ${groups[c].map(m => {
-          const st = statusOf(m);
-          return `<div class="match">
+        ${list.map(m=>{
+          const st=statusOf(m);
+          return `<div class="match${isLive(m)?' live':''}">
             <div class="team home">
-              ${m.teams.home.logo ? `<img src="${m.teams.home.logo}" alt="">` : ''}
-              <span>${m.teams.home.name}</span>
+              ${m.homeTeam.crest?`<img src="${m.homeTeam.crest}" alt="" loading="lazy">`:''}
+              <span>${m.homeTeam.shortName||m.homeTeam.name}</span>
             </div>
             <div class="score">
               <div class="nums">${scoreOf(m)}</div>
               <span class="status ${st.cls}">${st.txt}</span>
             </div>
             <div class="team away">
-              <span>${m.teams.away.name}</span>
-              ${m.teams.away.logo ? `<img src="${m.teams.away.logo}" alt="">` : ''}
+              <span>${m.awayTeam.shortName||m.awayTeam.name}</span>
+              ${m.awayTeam.crest?`<img src="${m.awayTeam.crest}" alt="" loading="lazy">`:''}
             </div>
           </div>`;
         }).join('')}
       </div>
-    </section>`).join('');
+    </section>`;
+  }).join('');
 }
 
-async function load(){
-  app.innerHTML='<div class="loader"></div>';
-  try{render(await getMatches(activeDate));}
-  catch(e){app.innerHTML=`<div class="empty">Fout: ${e.message}<br><small>Check API-limiet of CORS-proxy</small></div>`;}
+function showSkeleton(){
+  app.innerHTML=`<div id="skeleton">
+    ${[1,2,3].map(()=>`<div class="skel-comp">
+      <div class="skel-head"></div>
+      <div class="skel-card">
+        ${[1,2,3].map(()=>`<div class="skel-row"></div>`).join('')}
+      </div>
+    </div>`).join('')}
+  </div>`;
 }
+
+let loadId=0;
+async function load(){
+  const id=++loadId;
+  showSkeleton();
+  try{
+    const matches=await getMatches(activeDate);
+    if(id!==loadId)return;
+    render(matches);
+  }catch(e){
+    if(id!==loadId)return;
+    app.innerHTML=`<div class="empty"><span class="emoji">⚠️</span>Kon wedstrijden niet laden<span class="sub">${e.message}</span></div>`;
+  }
+}
+
+function haptic(){
+  if('vibrate' in navigator)navigator.vibrate(8);
+}
+
+function showToast(text){
+  let t=document.querySelector('.toast');
+  if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t);}
+  t.textContent=text;
+  requestAnimationFrame(()=>t.classList.add('show'));
+  clearTimeout(t._hide);
+  t._hide=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+filterRow.querySelectorAll('.chip').forEach(c=>{
+  c.onclick=()=>{
+    if(c.classList.contains('active'))return;
+    filterRow.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active');
+    activeFilter=c.dataset.filter;
+    haptic();
+    render(cachedMatches);
+  };
+});
+
+document.querySelectorAll('#tabbar .tab').forEach(tab=>{
+  tab.onclick=()=>{
+    document.querySelectorAll('#tabbar .tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    haptic();
+    const t=tab.dataset.tab;
+    if(t==='today'){
+      activeDate=todayKey;
+      activeFilter='all';
+      filterRow.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x.dataset.filter==='all'));
+      buildNav();
+      load();
+    }else if(t==='live'){
+      activeFilter='live';
+      filterRow.querySelectorAll('.chip').forEach(x=>x.classList.toggle('active',x.dataset.filter==='live'));
+      render(cachedMatches);
+    }else{
+      showToast('Binnenkort beschikbaar');
+    }
+  };
+});
+
+let lastScroll=0;
+let ticking=false;
+window.addEventListener('scroll',()=>{
+  if(ticking)return;
+  ticking=true;
+  requestAnimationFrame(()=>{
+    const y=window.scrollY;
+    if(y>lastScroll+10&&y>120){
+      tabbar.classList.add('hidden');
+    }else if(y<lastScroll-10||y<60){
+      tabbar.classList.remove('hidden');
+    }
+    lastScroll=y;
+    ticking=false;
+  });
+},{passive:true});
+
+let touchStartY=0,pulling=false;
+window.addEventListener('touchstart',e=>{
+  if(window.scrollY===0)touchStartY=e.touches[0].clientY;
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+  if(window.scrollY===0&&e.touches[0].clientY-touchStartY>80&&!pulling){
+    pulling=true;
+    haptic();
+    load();
+    setTimeout(()=>pulling=false,1500);
+  }
+},{passive:true});
 
 buildNav();
 load();
-// auto-refresh elke 60s als je op vandaag staat
-setInterval(()=>{if(activeDate===fmt(startOfDay()))load();},90000);
+setInterval(()=>{if(activeDate===todayKey)load();},90000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
