@@ -2,21 +2,55 @@
 <html lang="nl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pitch">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="stylesheet" href="style.css">
-<title>Scores</title>
+<title>Pitch</title>
 </head>
 <body>
-<header>
-  <h1>Scores</h1>
-  <nav id="dateNav"></nav>
+
+<header id="topbar">
+  <div class="topbar-bg"></div>
+  <div class="topbar-row">
+    <h1 class="title-large">Pitch</h1>
+    <button class="icon-btn" aria-label="Profiel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
+    </button>
+  </div>
+  <nav id="dateNav" aria-label="Datum"></nav>
 </header>
-<main id="app"><div class="loader"></div></main>
+
+<main id="app">
+  <div class="loader-wrap"><div class="loader"></div></div>
+</main>
+
+<nav id="tabbar" aria-label="Hoofdnavigatie">
+  <div class="tabbar-bg"></div>
+  <button class="tab active" data-tab="today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/></svg>
+    <span>Vandaag</span>
+  </button>
+  <button class="tab" data-tab="live">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9.25"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>
+    <span>Live</span>
+  </button>
+  <button class="tab" data-tab="leagues">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+    <span>Competities</span>
+  </button>
+  <button class="tab" data-tab="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4-4"/></svg>
+    <span>Zoeken</span>
+  </button>
+</nav>
+
 <script type="module" src="script.js"></script>
 </body>
 </html>
