@@ -1,19 +1,14 @@
 const API_KEY = 'a5121338cb264baaa294099596feaf92';
 const BASE_URL = 'https://api.football-data.org/v4';
-
 const COMPETITIONS = [2021, 2014, 2015, 2019, 2002, 2003, 2013, 2016, 2022, 2017, 2018, 2001];
 
-export async function fetchTodaysMatches() {
+async function fetchTodaysMatches() {
   const today = new Date().toISOString().split('T')[0];
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
-  
   const url = `${BASE_URL}/matches?dateFrom=${today}&dateTo=${tomorrow}&competitions=${COMPETITIONS.join(',')}`;
   
   try {
-    const response = await fetch(url, {
-      headers: { 'X-Auth-Token': API_KEY }
-    });
-    
+    const response = await fetch(url, { headers: { 'X-Auth-Token': API_KEY } });
     if (!response.ok) throw new Error(`API error: ${response.status}`);
     const data = await response.json();
     return data.matches || [];
@@ -23,7 +18,7 @@ export async function fetchTodaysMatches() {
   }
 }
 
-export function transformMatch(match) {
+function transformMatch(match) {
   return {
     id: match.id,
     competition: match.competition?.name || 'Unknown',
