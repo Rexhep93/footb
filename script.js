@@ -88,6 +88,6 @@ async function load(){
 buildNav();
 load();
 // auto-refresh elke 60s als je op vandaag staat
-setInterval(()=>{if(activeDate===fmt(startOfDay()))load();},60000);
+setInterval(()=>{if(activeDate===fmt(startOfDay()))load();},90000);
 
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
