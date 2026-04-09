@@ -1,4 +1,4 @@
-const C='scores-v1';
+const C='scores-v2';
 const A=['./','./index.html','./style.css','./script.js','./api.js','./manifest.json'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A))));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x))))));
