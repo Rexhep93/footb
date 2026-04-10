@@ -152,11 +152,11 @@ async function load(){
     const matches=await getMatches(activeDate);
     if(id!==loadId)return;
     render(matches);
-  }catch(e){
+}catch(e){
     if(id!==loadId)return;
-    app.innerHTML=`<div class="empty"><span class="emoji">⚠️</span>Kon wedstrijden niet laden<span class="sub">${e.message}</span></div>`;
+    const icon=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>`;
+    app.innerHTML=`<div class="empty"><div class="empty-icon">${icon}</div>Kon wedstrijden niet laden<span class="sub">${e.message}</span></div>`;
   }
-}
 
 function haptic(){
   if('vibrate' in navigator)navigator.vibrate(8);
