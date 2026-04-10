@@ -486,13 +486,6 @@ main{
   font-weight:500;
   letter-spacing:-.2px;
 }
-.empty .emoji{
-  display:block;
-  font-size:46px;
-  margin-bottom:18px;
-  opacity:.7;
-  filter:saturate(.85);
-}
 .empty .sub{
   display:block;
   margin-top:6px;
