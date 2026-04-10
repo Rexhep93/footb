@@ -1,4 +1,4 @@
-const C='pitch-v1';
+const C='pitch-pitch-v2';
 const A=['./','./index.html','./style.css','./script.js','./api.js','./manifest.json'];
 self.addEventListener('install',e=>{
   self.skipWaiting();
