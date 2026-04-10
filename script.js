@@ -80,10 +80,21 @@ function render(matches){
   cachedMatches=matches;
   const filtered=applyFilter(matches.filter(m=>ALLOWED.includes(m.competition?.code)));
   if(!filtered.length){
-    let emoji='⚽️',title='Geen wedstrijden',sub='Probeer een andere datum';
-    if(activeFilter==='live'){emoji='🟢';title='Geen live wedstrijden';sub='Kom later terug voor de actie';}
-    if(activeFilter==='fav'){emoji='⭐️';title='Nog geen favorieten';sub='Volg teams om ze hier te zien';}
-    app.innerHTML=`<div class="empty"><span class="emoji">${emoji}</span>${title}<span class="sub">${sub}</span></div>`;
+    let icon,title,sub;
+    if(activeFilter==='live'){
+      icon=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/></svg>`;
+      title='Geen live wedstrijden';
+      sub='Kom later terug voor de actie';
+    }else if(activeFilter==='fav'){
+      icon=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 2.6 5.7 6.2.7-4.6 4.3 1.2 6.1L12 17l-5.4 2.8 1.2-6.1L3.2 9.4l6.2-.7L12 3Z"/></svg>`;
+      title='Nog geen favorieten';
+      sub='Volg teams om ze hier te zien';
+    }else{
+      icon=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="16" rx="3.5"/><path d="M16 3v4M8 3v4M3.5 10h17"/></svg>`;
+      title='Geen wedstrijden';
+      sub='Probeer een andere datum';
+    }
+    app.innerHTML=`<div class="empty"><div class="empty-icon">${icon}</div>${title}<span class="sub">${sub}</span></div>`;
     return;
   }
   const groups={};
