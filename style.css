@@ -280,6 +280,26 @@ body{
   transition:transform .2s var(--spring),background .2s ease,color .2s ease;
   box-shadow:0 1px 0 var(--inner-hl) inset;
 }
+.chip svg{
+  width:13px;
+  height:13px;
+  opacity:.9;
+}
+.empty-icon{
+  width:56px;
+  height:56px;
+  margin:0 auto 18px;
+  display:grid;
+  place-items:center;
+  border-radius:20px;
+  background:var(--surface);
+  -webkit-backdrop-filter:var(--blur);
+  backdrop-filter:var(--blur);
+  border:.5px solid var(--hairline);
+  box-shadow:var(--shadow-card);
+  color:var(--text-2);
+}
+.empty-icon svg{width:26px;height:26px;stroke-width:1.6}
 .chip:active{transform:scale(.94)}
 .chip.active{
   background:var(--text);
