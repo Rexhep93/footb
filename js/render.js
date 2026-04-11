@@ -152,11 +152,12 @@ window.App = window.App || {};
     content.id = 'tab-content';
     root.appendChild(content);
     const tabs = [
-      { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
-      { id: 'kaart', label: 'Kaart', icon: I.nav_map },
-      { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
-      { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
-    ];
+  { id: 'thuis', label: 'Thuis', icon: I.nav_home },
+  { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
+  { id: 'kaart', label: 'Kaart', icon: I.nav_map },
+  { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
+  { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
+];
     const nav = el('nav', 'bottom-nav');
     const inner = el('div', 'bottom-nav-inner');
     for (const t of tabs) {
@@ -336,6 +337,46 @@ window.App = window.App || {};
     }
   }
 
+  function renderThuisTab(content, addr, handlers) {
+  const wrap = el('div', 'container thuis-wrap');
+  wrap.innerHTML = `
+    <div class="thuis-header">
+      <div class="thuis-label">Welkom thuis</div>
+      <div class="thuis-title">Jouw buurt in een overzicht</div>
+      <div class="thuis-sub">${addr.neighborhood?.name || addr.city}, ${addr.municipality?.name || ''}</div>
+    </div>
+
+    <section class="thuis-block">
+      <div class="thuis-block-title">In het kort</div>
+      <div class="thuis-block-body">Binnenkort: visuele statistieken vergeleken met de rest van Nederland.</div>
+      <button class="thuis-link" data-go="buurt">Lees meer over jouw buurt →</button>
+    </section>
+
+    <section class="thuis-block">
+      <div class="thuis-block-title">Laatste nieuws</div>
+      <div class="thuis-block-body">Binnenkort: het meest recente artikel uit jouw gemeente.</div>
+      <button class="thuis-link" data-go="nieuws">Meer nieuws over jouw buurt →</button>
+    </section>
+
+    <section class="thuis-block">
+      <div class="thuis-block-title">Meldingen</div>
+      <div class="thuis-block-body">Binnenkort: officiële bekendmakingen uit jouw omgeving.</div>
+      <button class="thuis-link" data-go="meldingen">Bekijk alle meldingen →</button>
+    </section>
+
+    <section class="thuis-block">
+      <div class="thuis-block-title">Dichtbij</div>
+      <div class="thuis-block-body">Binnenkort: dichtstbijzijnde supermarkt, buitenplek en eetgelegenheid.</div>
+      <button class="thuis-link" data-go="kaart">Open de kaart →</button>
+    </section>
+  `;
+  content.appendChild(wrap);
+
+  wrap.querySelectorAll('[data-go]').forEach(btn => {
+    btn.addEventListener('click', () => handlers.onTab(btn.dataset.go));
+  });
+}
+
   window.App.render = {
     onboarding(onSubmit) {
       const root = document.getElementById('app');
@@ -365,13 +406,14 @@ window.App = window.App || {};
       });
       wrap.querySelector('#pc').focus();
     },
-    shell(activeTab, addr, stats, handlers) {
-      const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
-      if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
-      else if (activeTab === 'kaart') renderKaartTab(content, addr);
-      else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
-      else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
-    },
+shell(activeTab, addr, stats, handlers) {
+  const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
+  if (activeTab === 'thuis') renderThuisTab(content, addr, handlers);
+  else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
+  else if (activeTab === 'kaart') renderKaartTab(content, addr);
+  else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
+  else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
+},
     openSettings(onChangeAddress) {
       renderSettingsSheet(null, onChangeAddress);
     },
