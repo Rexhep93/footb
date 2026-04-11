@@ -4,13 +4,4 @@ window.App.config = {
   CBS_BASE: 'https://opendata.cbs.nl/ODataApi/OData',
   CBS_DATASET: '85984NED',
   STORAGE_KEY: 'dichtbij:address:v1',
-  GROUP_ORDER: [
-    'Bevolking',
-    'Wonen',
-    'Inkomen',
-    'Sociale zekerheid',
-    'Energie',
-    'Zorggebruik',
-    'Nabijheid voorzieningen',
-  ],
 };
