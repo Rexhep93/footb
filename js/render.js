@@ -116,4 +116,201 @@ window.App = window.App || {};
   function themeEnergie(s) {
     const p = [];
     if (has(s.GemiddeldAardgasverbruik_55)) {
-      p.push(`Een gemiddelde woning verbruikt ${b(n(s.GemiddeldAardgasverbruik_55) + ' m³')} aardgas
+      p.push(`Een gemiddelde woning verbruikt ${b(n(s.GemiddeldAardgasverbruik_55) + ' m³')} aardgas per jaar.`);
+    }
+    if (has(s.GemiddeldeElektriciteitslevering_53)) {
+      p.push(`Het gemiddelde elektriciteitsverbruik ligt op ${b(n(s.GemiddeldeElektriciteitslevering_53) + ' kWh')} per woning.`);
+    }
+    if (has(s.WoningenMetZonnestroom_59)) {
+      p.push(`${b(pct(s.WoningenMetZonnestroom_59))} van de woningen heeft zonnepanelen op het dak.`);
+    }
+    if (has(s.AardgasvrijeWoningen_57)) {
+      p.push(`${b(pct(s.AardgasvrijeWoningen_57))} van de woningen is al volledig aardgasvrij.`);
+    }
+    return { title: 'Energie', subtitle: 'Hoe de buurt woont en verwarmt', icon: I.leaf, lines: p };
+  }
+
+  const THEMES = [themeBevolking, themeWonen, themeInkomen, themeVoorzieningen, themeMobiliteit, themeEnergie];
+
+  // ---------- DOM helpers ----------
+
+  function el(tag, cls, html) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (html !== undefined) e.innerHTML = html;
+    return e;
+  }
+
+  // ---------- shared chrome ----------
+
+  function renderChrome(activeTab, onTabChange, onSettings) {
+    const root = document.getElementById('app');
+    root.innerHTML = '';
+
+    // App header
+    const header = el('div', 'app-header');
+    header.innerHTML = `
+      <div class="app-header-inner">
+        <div class="logo">Dichtbij</div>
+        <button class="icon-btn" id="settings-btn" aria-label="Instellingen">${I.settings}</button>
+      </div>`;
+    root.appendChild(header);
+    header.querySelector('#settings-btn').addEventListener('click', onSettings);
+
+    // Content wrapper
+    const content = el('div');
+    content.id = 'tab-content';
+    root.appendChild(content);
+
+    // Bottom nav
+    const tabs = [
+      { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
+      { id: 'kaart', label: 'Kaart', icon: I.nav_map },
+      { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
+      { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
+    ];
+    const nav = el('nav', 'bottom-nav');
+    const inner = el('div', 'bottom-nav-inner');
+    for (const t of tabs) {
+      const btn = el('button', 'nav-tab' + (t.id === activeTab ? ' active' : ''));
+      btn.innerHTML = `${t.icon}<span>${t.label}</span>`;
+      btn.addEventListener('click', () => onTabChange(t.id));
+      inner.appendChild(btn);
+    }
+    nav.appendChild(inner);
+    root.appendChild(nav);
+
+    return content;
+  }
+
+  function renderBuurtTab(content, addr, stats) {
+    const sub = el('div', 'sub-header');
+    sub.innerHTML = `
+      <div class="sub-header-label">Jouw buurt</div>
+      <div class="sub-header-address">${addr.street} ${addr.houseNumber}, ${addr.neighborhood.name || addr.city}</div>
+      <div class="sub-header-meta">${addr.municipality.name}</div>`;
+    content.appendChild(sub);
+
+    const container = el('div', 'container dashboard');
+
+    if (stats === null) {
+      container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
+      content.appendChild(container); return;
+    }
+    if (stats === false) {
+      container.appendChild(el('div', 'state-msg', 'Buurtgegevens zijn tijdelijk niet beschikbaar.'));
+      content.appendChild(container); return;
+    }
+
+    for (const themeFn of THEMES) {
+      const { title, subtitle, icon, lines } = themeFn(stats);
+      if (!lines.length) continue;
+      const card = el('section', 'card');
+      const headerHtml = `
+        <div class="card-header">
+          <div class="card-header-icon">${icon}</div>
+          <div class="card-header-text">
+            <div class="card-header-title">${title}</div>
+            <div class="card-header-subtitle">${subtitle}</div>
+          </div>
+          <div class="card-chevron">${I.chevron}</div>
+        </div>
+        <div class="card-body">${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
+      card.innerHTML = headerHtml;
+      card.querySelector('.card-header').addEventListener('click', () => {
+        card.classList.toggle('collapsed');
+      });
+      container.appendChild(card);
+    }
+    content.appendChild(container);
+  }
+
+  function renderPlaceholder(content, icon, title, text) {
+    const wrap = el('div', 'placeholder');
+    wrap.innerHTML = `
+      <div class="placeholder-icon">${icon}</div>
+      <div class="placeholder-title">${title}</div>
+      <div class="placeholder-text">${text}</div>`;
+    content.appendChild(wrap);
+  }
+
+  // ---------- settings sheet ----------
+
+  function renderSettingsSheet(onClose, onChangeAddress) {
+    const existing = document.getElementById('sheet-root');
+    if (existing) existing.remove();
+
+    const sheetRoot = el('div');
+    sheetRoot.id = 'sheet-root';
+    const backdrop = el('div', 'sheet-backdrop');
+    const sheet = el('div', 'sheet');
+    sheet.innerHTML = `
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title">Instellingen</h2>
+      <div class="sheet-item" data-action="change"><span class="sheet-item-label">Wijzig mijn buurt</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
+      <div class="sheet-item"><span class="sheet-item-label">Voeg een buurt toe</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
+      <div class="sheet-item"><span class="sheet-item-label">Meldingen</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
+      <div class="sheet-item"><span class="sheet-item-label">Feedback</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
+      <div class="sheet-item"><span class="sheet-item-label">De kleine lettertjes</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>`;
+    sheetRoot.appendChild(backdrop);
+    sheetRoot.appendChild(sheet);
+    document.body.appendChild(sheetRoot);
+
+    requestAnimationFrame(() => {
+      backdrop.classList.add('open');
+      sheet.classList.add('open');
+    });
+
+    const close = () => {
+      backdrop.classList.remove('open');
+      sheet.classList.remove('open');
+      setTimeout(() => sheetRoot.remove(), 250);
+      onClose && onClose();
+    };
+    backdrop.addEventListener('click', close);
+    sheet.querySelector('[data-action="change"]').addEventListener('click', () => { close(); onChangeAddress(); });
+  }
+
+  window.App.render = {
+    onboarding(onSubmit) {
+      const root = document.getElementById('app');
+      root.innerHTML = '';
+      const wrap = el('div', 'onboarding');
+      wrap.innerHTML = `
+        <div class="onboarding-inner">
+          <h1 class="brand">Dichtbij</h1>
+          <p class="tagline">Ontdek wat er speelt in jouw buurt.</p>
+          <div class="form-row">
+            <div class="field field-pc"><label>Postcode</label><input id="pc" placeholder="1234 AB" autocomplete="postal-code"></div>
+            <div class="field"><label>Nr.</label><input id="hn" placeholder="22" inputmode="numeric"></div>
+          </div>
+          <button class="btn" id="go">Bekijk mijn buurt</button>
+          <div class="error" id="err" style="display:none"></div>
+        </div>`;
+      root.appendChild(wrap);
+      const btn = wrap.querySelector('#go');
+      const err = wrap.querySelector('#err');
+      btn.addEventListener('click', async () => {
+        const pc = wrap.querySelector('#pc').value;
+        const hn = wrap.querySelector('#hn').value;
+        if (!pc.trim() || !hn.trim()) { err.textContent = 'Vul postcode en huisnummer in.'; err.style.display = 'block'; return; }
+        btn.disabled = true; btn.textContent = 'Zoeken…'; err.style.display = 'none';
+        try { await onSubmit(pc, hn); }
+        catch (e) { err.textContent = 'Dit adres kunnen we niet vinden. Controleer postcode en huisnummer.'; err.style.display = 'block'; btn.disabled = false; btn.textContent = 'Bekijk mijn buurt'; }
+      });
+      wrap.querySelector('#pc').focus();
+    },
+
+    shell(activeTab, addr, stats, handlers) {
+      const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
+      if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
+      else if (activeTab === 'kaart') renderPlaceholder(content, I.nav_map, 'Kaart', 'Hier komt straks een kaart met voorzieningen, parken en andere plekken dichtbij.');
+      else if (activeTab === 'nieuws') renderPlaceholder(content, I.nav_news, 'Nieuws', 'Hier verschijnt lokaal nieuws uit jouw buurt en gemeente.');
+      else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
+    },
+
+    openSettings(onChangeAddress) {
+      renderSettingsSheet(null, onChangeAddress);
+    },
+  };
+})();
