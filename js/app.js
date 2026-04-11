@@ -1,23 +1,43 @@
 (function () {
   const { state, address, cbs, render } = window.App;
 
-async function showDashboard(addr) {
-  render.dashboard(addr, null, startOnboarding);
-  let stats = false;
-  try { stats = await cbs.getStats(addr.neighborhood.code); }
-  catch (e) { console.error(e); stats = false; }
-  render.dashboard(addr, stats, startOnboarding);
-}
+  let currentAddr = null;
+  let currentStats = null;
+  let activeTab = 'buurt';
+
+  const handlers = {
+    onTab(tab) {
+      activeTab = tab;
+      render.shell(activeTab, currentAddr, currentStats, handlers);
+    },
+    onSettings() {
+      render.openSettings(startOnboarding);
+    },
+  };
+
+  async function loadStats(addr) {
+    try { return await cbs.getStats(addr.neighborhood.code); }
+    catch (e) { console.error(e); return false; }
+  }
+
+  async function showShell(addr) {
+    currentAddr = addr;
+    currentStats = null;
+    render.shell(activeTab, currentAddr, currentStats, handlers);
+    currentStats = await loadStats(addr);
+    render.shell(activeTab, currentAddr, currentStats, handlers);
+  }
 
   function startOnboarding() {
     render.onboarding(async (pc, hn) => {
       const addr = await address.lookup(pc, hn);
       if (!addr) throw new Error('no_match');
       state.setAddress(addr);
-      await showDashboard(addr);
+      activeTab = 'buurt';
+      await showShell(addr);
     });
   }
 
   const saved = state.getAddress();
-  if (saved) showDashboard(saved); else startOnboarding();
+  if (saved) showShell(saved); else startOnboarding();
 })();
