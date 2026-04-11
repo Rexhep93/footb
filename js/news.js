@@ -70,7 +70,7 @@ window.App = window.App || {};
         console.error('Feed failed:', src.name, e);
       }
     }
-    const filtered = filterByMunicipality(all, municipalityName);
+    const filtered = all;  // TEMP: filter uit
     // Sort newest first
     filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
     return { items: filtered, hasSource: true };
