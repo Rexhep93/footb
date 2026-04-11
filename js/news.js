@@ -47,34 +47,46 @@ window.App = window.App || {};
     return parseRSS(text);
   }
 
-  // Filter items waarin de gemeentenaam voorkomt in titel of beschrijving
-  function filterByMunicipality(items, municipalityName) {
-    if (!municipalityName) return items;
-    const needle = municipalityName.toLowerCase();
-    return items.filter(item => {
-      const haystack = (item.title + ' ' + item.description).toLowerCase();
-      return haystack.includes(needle);
-    });
-  }
+// Extra plaatsen per gemeente — breid uit als je meer gemeentes dekt
+const MUNICIPALITY_ALIASES = {
+  'Venlo': ['venlo', 'tegelen', 'blerick', 'belfeld', 'steyl', 'arcen', 'velden', 'lomm'],
+};
 
-  async function fetchForRegion(province, municipalityName) {
-    const sources = SOURCES[province];
-    if (!sources || !sources.length) return { items: [], hasSource: false };
+function filterByMunicipality(items, municipalityName, neighborhoodName, districtName) {
+  if (!municipalityName) return items;
+  const needles = new Set();
+  needles.add(municipalityName.toLowerCase());
+  if (neighborhoodName) needles.add(neighborhoodName.toLowerCase());
+  if (districtName) needles.add(districtName.toLowerCase());
+  const aliases = MUNICIPALITY_ALIASES[municipalityName] || [];
+  for (const a of aliases) needles.add(a);
 
-    const all = [];
-    for (const src of sources) {
-      try {
-        const items = await fetchFeed(src.url);
-        for (const i of items) all.push({ ...i, source: src.name });
-      } catch (e) {
-        console.error('Feed failed:', src.name, e);
-      }
+  return items.filter(item => {
+    const haystack = (item.title + ' ' + item.description).toLowerCase();
+    for (const n of needles) {
+      if (haystack.includes(n)) return true;
     }
-    const filtered = filterByMunicipality(all, municipalityName);
-    // Sort newest first
-    filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-    return { items: filtered, hasSource: true };
+    return false;
+  });
+}
+
+async function fetchForRegion(province, municipalityName, neighborhoodName, districtName) {
+  const sources = SOURCES[province];
+  if (!sources || !sources.length) return { items: [], hasSource: false };
+
+  const all = [];
+  for (const src of sources) {
+    try {
+      const items = await fetchFeed(src.url);
+      for (const i of items) all.push({ ...i, source: src.name });
+    } catch (e) {
+      console.error('Feed failed:', src.name, e);
+    }
   }
+  const filtered = filterByMunicipality(all, municipalityName, neighborhoodName, districtName);
+  filtered.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+  return { items: filtered, hasSource: true };
+}
 
   function formatDate(pubDate) {
     if (!pubDate) return '';
