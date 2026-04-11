@@ -306,6 +306,60 @@ function renderKaartTab(content, addr) {
     });
   }, 50);
 }
+
+async function renderNieuwsTab(content, addr) {
+  const wrap = el('div', 'container news-wrap');
+  wrap.innerHTML = `
+    <div class="news-header">
+      <div class="news-title">Nieuws uit ${addr.municipality.name}</div>
+      <div class="news-sub" id="news-sub">Laden…</div>
+    </div>
+    <div id="news-list"></div>
+  `;
+  content.appendChild(wrap);
+
+  const listEl = wrap.querySelector('#news-list');
+  const subEl = wrap.querySelector('#news-sub');
+
+  try {
+    const { items, hasSource } = await window.App.news.fetchForRegion(
+      addr.province.name,
+      addr.municipality.name
+    );
+
+    if (!hasSource) {
+      subEl.textContent = `Nog geen nieuwsbron beschikbaar voor ${addr.province.name}.`;
+      return;
+    }
+
+    if (!items.length) {
+      subEl.textContent = 'Geen recent nieuws gevonden voor jouw gemeente.';
+      return;
+    }
+
+    subEl.textContent = `${items.length} artikel${items.length === 1 ? '' : 'en'} gevonden`;
+
+    for (const item of items) {
+      const card = el('a', 'news-card');
+      card.href = item.link;
+      card.target = '_blank';
+      card.rel = 'noopener noreferrer';
+      const img = item.image ? `<div class="news-image" style="background-image:url('${item.image}')"></div>` : '';
+      card.innerHTML = `
+        ${img}
+        <div class="news-body">
+          <div class="news-meta">${item.source} · ${window.App.news.formatDate(item.pubDate)}</div>
+          <div class="news-headline">${item.title}</div>
+          <div class="news-desc">${item.description.slice(0, 140)}${item.description.length > 140 ? '…' : ''}</div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    }
+  } catch (e) {
+    console.error(e);
+    subEl.textContent = 'Nieuws tijdelijk niet beschikbaar.';
+  }
+}
   
   window.App.render = {
     onboarding(onSubmit) {
@@ -341,7 +395,7 @@ function renderKaartTab(content, addr) {
       const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
       if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
       else if (activeTab === 'kaart') renderKaartTab(content, addr);
-      else if (activeTab === 'nieuws') renderPlaceholder(content, I.nav_news, 'Nieuws', 'Hier verschijnt lokaal nieuws uit jouw buurt en gemeente.');
+      else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
       else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
     },
 
