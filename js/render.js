@@ -271,6 +271,42 @@ window.App = window.App || {};
     sheet.querySelector('[data-action="change"]').addEventListener('click', () => { close(); onChangeAddress(); });
   }
 
+function renderKaartTab(content, addr) {
+  const { CATEGORIES } = window.App.map;
+
+  const wrap = el('div', 'map-wrap');
+  wrap.innerHTML = `
+    <div class="map-filters" id="map-filters"></div>
+    <div class="map-status" id="map-status">Kaart laden…</div>
+    <div class="map-container" id="leaflet-map"></div>
+  `;
+  content.appendChild(wrap);
+
+  // Build filter chips
+  const filters = wrap.querySelector('#map-filters');
+  for (const [key, cat] of Object.entries(CATEGORIES)) {
+    const chip = el('button', 'filter-chip active');
+    chip.dataset.key = key;
+    chip.innerHTML = `<span class="chip-dot" style="background:${cat.color}"></span>${cat.label}`;
+    chip.addEventListener('click', () => {
+      window.App.map.toggleFilter(key);
+      chip.classList.toggle('active');
+    });
+    filters.appendChild(chip);
+  }
+
+  const statusEl = wrap.querySelector('#map-status');
+
+  // Init after DOM is attached
+  setTimeout(() => {
+    window.App.map.init('leaflet-map', addr, (state, info) => {
+      if (state === 'loading') statusEl.textContent = 'Voorzieningen laden…';
+      else if (state === 'ready') statusEl.textContent = `${info} plekken in de buurt gevonden`;
+      else if (state === 'error') statusEl.textContent = info;
+    });
+  }, 50);
+}
+  
   window.App.render = {
     onboarding(onSubmit) {
       const root = document.getElementById('app');
@@ -304,7 +340,7 @@ window.App = window.App || {};
     shell(activeTab, addr, stats, handlers) {
       const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
       if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
-      else if (activeTab === 'kaart') renderPlaceholder(content, I.nav_map, 'Kaart', 'Hier komt straks een kaart met voorzieningen, parken en andere plekken dichtbij.');
+      else if (activeTab === 'kaart') renderKaartTab(content, addr);
       else if (activeTab === 'nieuws') renderPlaceholder(content, I.nav_news, 'Nieuws', 'Hier verschijnt lokaal nieuws uit jouw buurt en gemeente.');
       else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
     },
