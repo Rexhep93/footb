@@ -2,36 +2,61 @@ window.App = window.App || {};
 (function () {
   const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
+  // Elke categorie kan meerdere tags matchen
   const CATEGORIES = {
-    supermarkt: { label: 'Supermarkt', color: '#2d7a3e', tag: 'shop=supermarket' },
-    huisarts:   { label: 'Huisarts',   color: '#c2424c', tag: 'amenity=doctors' },
-    apotheek:   { label: 'Apotheek',   color: '#d9832f', tag: 'amenity=pharmacy' },
-    school:     { label: 'School',     color: '#2c5fa8', tag: 'amenity=school' },
-    park:       { label: 'Park',       color: '#4a8c3a', tag: 'leisure=park' },
-    restaurant: { label: 'Restaurant', color: '#8a4fa0', tag: 'amenity=restaurant' },
+    supermarkt: {
+      label: 'Supermarkt',
+      color: '#2d7a3e',
+      tags: ['shop=supermarket', 'shop=convenience'],
+    },
+    huisarts: {
+      label: 'Huisarts',
+      color: '#c2424c',
+      tags: ['amenity=doctors', 'healthcare=doctor'],
+    },
+    apotheek: {
+      label: 'Apotheek',
+      color: '#d9832f',
+      tags: ['amenity=pharmacy'],
+    },
+    school: {
+      label: 'School',
+      color: '#2c5fa8',
+      tags: ['amenity=school', 'amenity=kindergarten'],
+    },
+    park: {
+      label: 'Groen',
+      color: '#4a8c3a',
+      tags: ['leisure=park', 'leisure=playground', 'leisure=garden'],
+    },
+    eten: {
+      label: 'Eten & drinken',
+      color: '#8a4fa0',
+      tags: ['amenity=restaurant', 'amenity=cafe', 'amenity=fast_food', 'amenity=bar'],
+    },
   };
 
   function buildQuery(lat, lng, radius) {
-    // For each category, query node + way + relation
-    const parts = Object.values(CATEGORIES).map(c => {
-      const [k, v] = c.tag.split('=');
-      return `
-        node[${k}=${v}](around:${radius},${lat},${lng});
-        way[${k}=${v}](around:${radius},${lat},${lng});
-        relation[${k}=${v}](around:${radius},${lat},${lng});
-      `;
-    }).join('');
-    return `[out:json][timeout:25];(${parts});out center tags;`;
+    const parts = [];
+    for (const c of Object.values(CATEGORIES)) {
+      for (const tag of c.tags) {
+        const [k, v] = tag.split('=');
+        parts.push(`node[${k}=${v}](around:${radius},${lat},${lng});`);
+        parts.push(`way[${k}=${v}](around:${radius},${lat},${lng});`);
+        parts.push(`relation[${k}=${v}](around:${radius},${lat},${lng});`);
+      }
+    }
+    return `[out:json][timeout:25];(${parts.join('')});out center tags;`;
   }
 
   function categorize(tags) {
     if (!tags) return null;
-    if (tags.shop === 'supermarket') return 'supermarkt';
-    if (tags.amenity === 'doctors') return 'huisarts';
-    if (tags.amenity === 'pharmacy') return 'apotheek';
-    if (tags.amenity === 'school') return 'school';
-    if (tags.leisure === 'park') return 'park';
-    if (tags.amenity === 'restaurant') return 'restaurant';
+    for (const [catKey, cat] of Object.entries(CATEGORIES)) {
+      for (const tag of cat.tags) {
+        const [k, v] = tag.split('=');
+        if (tags[k] === v) return catKey;
+      }
+    }
     return null;
   }
 
@@ -52,19 +77,13 @@ window.App = window.App || {};
       const cat = categorize(el.tags);
       if (!cat) continue;
 
-      // Get coordinates: node has lat/lon directly, way/relation has center
       let lat2, lng2;
-      if (el.type === 'node') {
-        lat2 = el.lat; lng2 = el.lon;
-      } else if (el.center) {
-        lat2 = el.center.lat; lng2 = el.center.lon;
-      } else {
-        continue;
-      }
+      if (el.type === 'node') { lat2 = el.lat; lng2 = el.lon; }
+      else if (el.center) { lat2 = el.center.lat; lng2 = el.center.lon; }
+      else continue;
 
-      // Dedupe: same name + category within ~50m
-      const name = el.tags?.name || CATEGORIES[cat].label;
-      const key = `${cat}|${name}|${lat2.toFixed(4)}|${lng2.toFixed(4)}`;
+      const rawName = el.tags?.name || null;
+      const key = `${cat}|${rawName || 'noname'}|${lat2.toFixed(4)}|${lng2.toFixed(4)}`;
       if (seen.has(key)) continue;
       seen.add(key);
 
@@ -72,7 +91,7 @@ window.App = window.App || {};
         id: `${el.type}${el.id}`,
         lat: lat2,
         lng: lng2,
-        name,
+        name: rawName,  // null als geen naam
         category: cat,
       });
     }
