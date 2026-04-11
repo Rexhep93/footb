@@ -1,13 +1,13 @@
 (function () {
   const { state, address, cbs, render } = window.App;
 
-  async function showDashboard(addr) {
-    render.dashboard(addr, null, startOnboarding);
-    let groups = null;
-    try { groups = await cbs.getDashboard(addr.neighborhood.code); }
-    catch (e) { console.error(e); }
-    render.dashboard(addr, groups, startOnboarding);
-  }
+async function showDashboard(addr) {
+  render.dashboard(addr, null, startOnboarding);
+  let stats = false;
+  try { stats = await cbs.getStats(addr.neighborhood.code); }
+  catch (e) { console.error(e); stats = false; }
+  render.dashboard(addr, stats, startOnboarding);
+}
 
   function startOnboarding() {
     render.onboarding(async (pc, hn) => {
