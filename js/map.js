@@ -22,16 +22,26 @@ window.App = window.App || {};
   }
 
   function renderMarkers() {
-    if (!markerLayer) return;
-    markerLayer.clearLayers();
-    for (const p of allPoints) {
-      if (!activeFilters.has(p.category)) continue;
-      const cat = CATEGORIES[p.category];
-      const marker = L.marker([p.lat, p.lng], { icon: makeIcon(cat.color) });
-      marker.bindPopup(`<strong>${p.name}</strong><br><span style="color:#6b6b6b;font-size:12px">${cat.label}</span>`);
-      marker.addTo(markerLayer);
+  if (!markerLayer) return;
+  markerLayer.clearLayers();
+  for (const p of allPoints) {
+    if (!activeFilters.has(p.category)) continue;
+    const cat = CATEGORIES[p.category];
+    const marker = L.marker([p.lat, p.lng], { icon: makeIcon(cat.color) });
+
+    // Als er geen naam is, toon alleen de categorie
+    // Als de naam gelijk is aan de categorie, toon alleen de categorie
+    // Anders: naam groot, categorie klein eronder
+    let popupHtml;
+    if (!p.name || p.name.toLowerCase() === cat.label.toLowerCase()) {
+      popupHtml = `<strong>${cat.label}</strong>`;
+    } else {
+      popupHtml = `<strong>${p.name}</strong><br><span style="color:#6b6b6b;font-size:12px">${cat.label}</span>`;
     }
+    marker.bindPopup(popupHtml);
+    marker.addTo(markerLayer);
   }
+}
 
   async function init(containerId, addr, onStatus) {
     if (!addr.coords) { onStatus('error', 'Locatie ontbreekt'); return; }
