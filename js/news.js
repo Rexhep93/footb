@@ -6,7 +6,7 @@ window.App = window.App || {};
   // Nieuwsbronnen per provincie. Breid uit naar andere regio's later.
   const SOURCES = {
     'Limburg': [
-      { name: 'L1', url: 'http://feeds.feedburner.com/l1/nieuws' },
+      { name: 'L1', url: 'https://www.l1nieuws.nl/rss/index.xml' },
     ],
     // 'Noord-Brabant': [{ name: 'Omroep Brabant', url: '...' }],
     // 'Noord-Holland': [{ name: 'NH Nieuws', url: '...' }],
