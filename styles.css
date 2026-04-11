@@ -114,3 +114,7 @@ body {
 .stat-label { font-size: 14px; color: var(--ink-soft); margin-top: 4px; }
 
 .state-msg { text-align: center; padding: 60px 24px; color: var(--ink-soft); }
+
+.insight { font-size: 15px; line-height: 1.6; color: var(--ink); margin: 0 0 14px; }
+.insight strong { font-weight: 600; }
+.state-msg { text-align: center; padding: 60px 24px; color: var(--ink-soft); }
