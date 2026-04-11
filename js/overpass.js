@@ -25,7 +25,7 @@ window.App = window.App || {};
       tags: ['amenity=school', 'amenity=kindergarten'],
     },
     park: {
-      label: 'Groen',
+      label: 'Buitenplekken',
       color: '#4a8c3a',
       tags: ['leisure=park', 'leisure=playground', 'leisure=garden'],
     },
