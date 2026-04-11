@@ -308,10 +308,13 @@ function renderKaartTab(content, addr) {
 }
 
 async function renderNieuwsTab(content, addr) {
+  const provinceName = addr.province?.name || null;
+  const municipalityName = addr.municipality?.name || '';
+
   const wrap = el('div', 'container news-wrap');
   wrap.innerHTML = `
     <div class="news-header">
-      <div class="news-title">Nieuws uit ${addr.municipality.name}</div>
+      <div class="news-title">Nieuws uit ${municipalityName}</div>
       <div class="news-sub" id="news-sub">Laden…</div>
     </div>
     <div id="news-list"></div>
@@ -321,10 +324,15 @@ async function renderNieuwsTab(content, addr) {
   const listEl = wrap.querySelector('#news-list');
   const subEl = wrap.querySelector('#news-sub');
 
+  if (!provinceName) {
+    subEl.textContent = 'Provinciegegevens ontbreken. Voer je adres opnieuw in via Instellingen.';
+    return;
+  }
+
   try {
     const { items, hasSource } = await window.App.news.fetchForRegion(
-      addr.province.name,
-      addr.municipality.name
+      provinceName,
+      municipalityName
     );
 
     if (!hasSource) {
