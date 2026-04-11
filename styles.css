@@ -243,3 +243,55 @@ body {
 .leaflet-popup-content { font-family: 'Inter', sans-serif; font-size: 13px; margin: 10px 14px; }
 
 .state-msg { text-align: center; padding: 60px 24px; color: var(--ink-soft); }
+
+/* ========= Nieuws-tab ========= */
+.news-wrap { padding-top: 20px; }
+.news-header { margin-bottom: 20px; }
+.news-title {
+  font-family: 'Fraunces', serif;
+  font-size: 24px; font-weight: 600;
+  line-height: 1.2;
+}
+.news-sub {
+  font-size: 13px; color: var(--ink-soft);
+  margin-top: 4px;
+}
+.news-card {
+  display: block;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 0 rgba(0,0,0,0.02);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 0.15s;
+}
+.news-card:hover { transform: translateY(-1px); }
+.news-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--line);
+}
+.news-body { padding: 16px 18px; }
+.news-meta {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.news-headline {
+  font-family: 'Fraunces', serif;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+.news-desc {
+  font-size: 14px;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
