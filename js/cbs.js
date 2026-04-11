@@ -48,19 +48,23 @@ window.App = window.App || {};
     return out;
   }
 
-  window.App.cbs = {
-    async getDashboard(code) {
-      const [stats, meta] = await Promise.all([fetchStats(code), fetchMeta()]);
-      if (!stats) return null;
-      const byGroup = {};
-      for (const [key, value] of Object.entries(stats)) {
-        const m = meta[key]; if (!m) continue;
-        if (value === null || value === '' || value === undefined) continue;
-        (byGroup[m.group] = byGroup[m.group] || []).push({
-          title: m.title, value, unit: m.unit, decimals: m.decimals,
-        });
-      }
-      return byGroup;
-    },
-  };
+window.App.cbs = {
+  async getStats(code) {
+    return await fetchStats(code);
+  },
+  async getDashboard(code) {
+    // oude functie, nog even laten staan voor compatibiliteit
+    const [stats, meta] = await Promise.all([fetchStats(code), fetchMeta()]);
+    if (!stats) return null;
+    const byGroup = {};
+    for (const [key, value] of Object.entries(stats)) {
+      const m = meta[key]; if (!m) continue;
+      if (value === null || value === '' || value === undefined) continue;
+      (byGroup[m.group] = byGroup[m.group] || []).push({
+        title: m.title, value, unit: m.unit, decimals: m.decimals,
+      });
+    }
+    return byGroup;
+  },
+};
 })();
