@@ -15,8 +15,6 @@ window.App = window.App || {};
   function has(v) { return v !== null && v !== undefined && v !== ''; }
   function b(t) { return `<strong>${t}</strong>`; }
 
-  // ---------- themes: friendly narrative voice ----------
-
   function themeBevolking(s) {
     const p = [];
     if (has(s.AantalInwoners_5)) {
@@ -132,8 +130,6 @@ window.App = window.App || {};
 
   const THEMES = [themeBevolking, themeWonen, themeInkomen, themeVoorzieningen, themeMobiliteit, themeEnergie];
 
-  // ---------- DOM helpers ----------
-
   function el(tag, cls, html) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -141,13 +137,9 @@ window.App = window.App || {};
     return e;
   }
 
-  // ---------- shared chrome ----------
-
   function renderChrome(activeTab, onTabChange, onSettings) {
     const root = document.getElementById('app');
     root.innerHTML = '';
-
-    // App header
     const header = el('div', 'app-header');
     header.innerHTML = `
       <div class="app-header-inner">
@@ -156,13 +148,9 @@ window.App = window.App || {};
       </div>`;
     root.appendChild(header);
     header.querySelector('#settings-btn').addEventListener('click', onSettings);
-
-    // Content wrapper
     const content = el('div');
     content.id = 'tab-content';
     root.appendChild(content);
-
-    // Bottom nav
     const tabs = [
       { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
       { id: 'kaart', label: 'Kaart', icon: I.nav_map },
@@ -179,7 +167,6 @@ window.App = window.App || {};
     }
     nav.appendChild(inner);
     root.appendChild(nav);
-
     return content;
   }
 
@@ -190,9 +177,7 @@ window.App = window.App || {};
       <div class="sub-header-address">${addr.street} ${addr.houseNumber}, ${addr.neighborhood.name || addr.city}</div>
       <div class="sub-header-meta">${addr.municipality.name}</div>`;
     content.appendChild(sub);
-
     const container = el('div', 'container dashboard');
-
     if (stats === null) {
       container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
       content.appendChild(container); return;
@@ -201,7 +186,6 @@ window.App = window.App || {};
       container.appendChild(el('div', 'state-msg', 'Buurtgegevens zijn tijdelijk niet beschikbaar.'));
       content.appendChild(container); return;
     }
-
     for (const themeFn of THEMES) {
       const { title, subtitle, icon, lines } = themeFn(stats);
       if (!lines.length) continue;
@@ -234,12 +218,9 @@ window.App = window.App || {};
     content.appendChild(wrap);
   }
 
-  // ---------- settings sheet ----------
-
   function renderSettingsSheet(onClose, onChangeAddress) {
     const existing = document.getElementById('sheet-root');
     if (existing) existing.remove();
-
     const sheetRoot = el('div');
     sheetRoot.id = 'sheet-root';
     const backdrop = el('div', 'sheet-backdrop');
@@ -255,12 +236,10 @@ window.App = window.App || {};
     sheetRoot.appendChild(backdrop);
     sheetRoot.appendChild(sheet);
     document.body.appendChild(sheetRoot);
-
     requestAnimationFrame(() => {
       backdrop.classList.add('open');
       sheet.classList.add('open');
     });
-
     const close = () => {
       backdrop.classList.remove('open');
       sheet.classList.remove('open');
@@ -271,104 +250,92 @@ window.App = window.App || {};
     sheet.querySelector('[data-action="change"]').addEventListener('click', () => { close(); onChangeAddress(); });
   }
 
-function renderKaartTab(content, addr) {
-  const { CATEGORIES } = window.App.map;
-
-  const wrap = el('div', 'map-wrap');
-  wrap.innerHTML = `
-    <div class="map-filters" id="map-filters"></div>
-    <div class="map-status" id="map-status">Kaart laden…</div>
-    <div class="map-container" id="leaflet-map"></div>
-  `;
-  content.appendChild(wrap);
-
-  // Build filter chips
-  const filters = wrap.querySelector('#map-filters');
-  for (const [key, cat] of Object.entries(CATEGORIES)) {
-    const chip = el('button', 'filter-chip active');
-    chip.dataset.key = key;
-    chip.innerHTML = `<span class="chip-dot" style="background:${cat.color}"></span>${cat.label}`;
-    chip.addEventListener('click', () => {
-      window.App.map.toggleFilter(key);
-      chip.classList.toggle('active');
-    });
-    filters.appendChild(chip);
+  function renderKaartTab(content, addr) {
+    const { CATEGORIES } = window.App.map;
+    const wrap = el('div', 'map-wrap');
+    wrap.innerHTML = `
+      <div class="map-filters" id="map-filters"></div>
+      <div class="map-status" id="map-status">Kaart laden…</div>
+      <div class="map-container" id="leaflet-map"></div>
+    `;
+    content.appendChild(wrap);
+    const filters = wrap.querySelector('#map-filters');
+    for (const [key, cat] of Object.entries(CATEGORIES)) {
+      const chip = el('button', 'filter-chip active');
+      chip.dataset.key = key;
+      chip.innerHTML = `<span class="chip-dot" style="background:${cat.color}"></span>${cat.label}`;
+      chip.addEventListener('click', () => {
+        window.App.map.toggleFilter(key);
+        chip.classList.toggle('active');
+      });
+      filters.appendChild(chip);
+    }
+    const statusEl = wrap.querySelector('#map-status');
+    setTimeout(() => {
+      window.App.map.init('leaflet-map', addr, (state, info) => {
+        if (state === 'loading') statusEl.textContent = 'Voorzieningen laden…';
+        else if (state === 'ready') statusEl.textContent = `${info} plekken in de buurt gevonden`;
+        else if (state === 'error') statusEl.textContent = info;
+      });
+    }, 50);
   }
 
-  const statusEl = wrap.querySelector('#map-status');
-
-  // Init after DOM is attached
-  setTimeout(() => {
-    window.App.map.init('leaflet-map', addr, (state, info) => {
-      if (state === 'loading') statusEl.textContent = 'Voorzieningen laden…';
-      else if (state === 'ready') statusEl.textContent = `${info} plekken in de buurt gevonden`;
-      else if (state === 'error') statusEl.textContent = info;
-    });
-  }, 50);
-}
-
-async function renderNieuwsTab(content, addr) {
-  const provinceName = addr.province?.name || null;
-  const municipalityName = addr.municipality?.name || '';
-
-  const wrap = el('div', 'container news-wrap');
-  wrap.innerHTML = `
-    <div class="news-header">
-      <div class="news-title">Nieuws uit ${municipalityName}</div>
-      <div class="news-sub" id="news-sub">Laden…</div>
-    </div>
-    <div id="news-list"></div>
-  `;
-  content.appendChild(wrap);
-
-  const listEl = wrap.querySelector('#news-list');
-  const subEl = wrap.querySelector('#news-sub');
-
-  if (!provinceName) {
-    subEl.textContent = 'Provinciegegevens ontbreken. Voer je adres opnieuw in via Instellingen.';
-    return;
-  }
-
-  try {
-    const { items, hasSource } = await window.App.news.fetchForRegion(
-      provinceName,
-      municipalityName
-    );
-
-    if (!hasSource) {
-      subEl.textContent = `Nog geen nieuwsbron beschikbaar voor ${addr.province.name}.`;
+  async function renderNieuwsTab(content, addr) {
+    const provinceName = addr.province?.name || null;
+    const municipalityName = addr.municipality?.name || '';
+    const wrap = el('div', 'container news-wrap');
+    wrap.innerHTML = `
+      <div class="news-header">
+        <div class="news-title">Nieuws uit ${municipalityName}</div>
+        <div class="news-sub" id="news-sub">Laden…</div>
+      </div>
+      <div id="news-list"></div>
+    `;
+    content.appendChild(wrap);
+    const listEl = wrap.querySelector('#news-list');
+    const subEl = wrap.querySelector('#news-sub');
+    if (!provinceName) {
+      subEl.textContent = 'Provinciegegevens ontbreken. Voer je adres opnieuw in via Instellingen.';
       return;
     }
-
-    if (!items.length) {
-      subEl.textContent = 'Geen recent nieuws gevonden voor jouw gemeente.';
-      return;
+    try {
+      const { items, hasSource } = await window.App.news.fetchForRegion(
+        provinceName,
+        municipalityName,
+        addr.neighborhood?.name,
+        addr.district?.name
+      );
+      if (!hasSource) {
+        subEl.textContent = `Nog geen nieuwsbron beschikbaar voor ${addr.province.name}.`;
+        return;
+      }
+      if (!items.length) {
+        subEl.textContent = 'Geen recent nieuws gevonden voor jouw gemeente.';
+        return;
+      }
+      subEl.textContent = `${items.length} artikel${items.length === 1 ? '' : 'en'} gevonden`;
+      for (const item of items) {
+        const card = el('a', 'news-card');
+        card.href = item.link;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        const img = item.image ? `<div class="news-image" style="background-image:url('${item.image}')"></div>` : '';
+        card.innerHTML = `
+          ${img}
+          <div class="news-body">
+            <div class="news-meta">${item.source} · ${window.App.news.formatDate(item.pubDate)}</div>
+            <div class="news-headline">${item.title}</div>
+            <div class="news-desc">${item.description.slice(0, 140)}${item.description.length > 140 ? '…' : ''}</div>
+          </div>
+        `;
+        listEl.appendChild(card);
+      }
+    } catch (e) {
+      console.error(e);
+      subEl.textContent = 'Nieuws tijdelijk niet beschikbaar.';
     }
-
-    subEl.textContent = `${items.length} artikel${items.length === 1 ? '' : 'en'} gevonden`;
-
-    for (const item of items) {
-      const card = el('a', 'news-card');
-      card.href = item.link;
-      card.target = '_blank';
-      card.rel = 'noopener noreferrer';
-      const img = item.image ? `<div class="news-image" style="background-image:url('${item.image}')"></div>` : '';
-      card.innerHTML = `
-        ${img}
-        <div class="news-body">
-          <div class="news-meta">${item.source} · ${window.App.news.formatDate(item.pubDate)}</div>
-          <div class="news-headline">${item.title}</div>
-          <div class="news-desc">${item.description.slice(0, 140)}${item.description.length > 140 ? '…' : ''}</div>
-        </div>
-      `;
-      listEl.appendChild(card);
-    }
-  } catch (e) {
-    console.error(e);
-    subEl.textContent = 'Nieuws tijdelijk niet beschikbaar.';
   }
-}
-  
+
   window.App.render = {
     onboarding(onSubmit) {
       const root = document.getElementById('app');
@@ -398,7 +365,6 @@ async function renderNieuwsTab(content, addr) {
       });
       wrap.querySelector('#pc').focus();
     },
-
     shell(activeTab, addr, stats, handlers) {
       const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
       if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
@@ -406,7 +372,6 @@ async function renderNieuwsTab(content, addr) {
       else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
       else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
     },
-
     openSettings(onChangeAddress) {
       renderSettingsSheet(null, onChangeAddress);
     },
