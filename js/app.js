@@ -3,7 +3,7 @@
 
   let currentAddr = null;
   let currentStats = null;
-  let activeTab = 'buurt';
+  let activeTab = 'thuis';
 
   const handlers = {
     onTab(tab) {
@@ -33,7 +33,7 @@
       const addr = await address.lookup(pc, hn);
       if (!addr) throw new Error('no_match');
       state.setAddress(addr);
-      activeTab = 'buurt';
+      activeTab = 'thuis';
       await showShell(addr);
     });
   }
