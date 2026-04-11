@@ -2,24 +2,30 @@ window.App = window.App || {};
 (function () {
   const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
-  // Category → Overpass tag queries. Radius in meters.
   const CATEGORIES = {
-    supermarkt: { label: 'Supermarkt', color: '#2d7a3e', query: 'node[shop=supermarket]' },
-    huisarts:   { label: 'Huisarts',   color: '#c2424c', query: 'node[amenity=doctors]' },
-    apotheek:   { label: 'Apotheek',   color: '#d9832f', query: 'node[amenity=pharmacy]' },
-    school:     { label: 'School',     color: '#2c5fa8', query: 'node[amenity=school]' },
-    park:       { label: 'Park',       color: '#4a8c3a', query: 'node[leisure=park]' },
-    restaurant: { label: 'Restaurant', color: '#8a4fa0', query: 'node[amenity=restaurant]' },
+    supermarkt: { label: 'Supermarkt', color: '#2d7a3e', tag: 'shop=supermarket' },
+    huisarts:   { label: 'Huisarts',   color: '#c2424c', tag: 'amenity=doctors' },
+    apotheek:   { label: 'Apotheek',   color: '#d9832f', tag: 'amenity=pharmacy' },
+    school:     { label: 'School',     color: '#2c5fa8', tag: 'amenity=school' },
+    park:       { label: 'Park',       color: '#4a8c3a', tag: 'leisure=park' },
+    restaurant: { label: 'Restaurant', color: '#8a4fa0', tag: 'amenity=restaurant' },
   };
 
   function buildQuery(lat, lng, radius) {
-    const parts = Object.entries(CATEGORIES).map(([key, c]) =>
-      `${c.query}(around:${radius},${lat},${lng});`
-    ).join('\n');
-    return `[out:json][timeout:25];(${parts});out body;`;
+    // For each category, query node + way + relation
+    const parts = Object.values(CATEGORIES).map(c => {
+      const [k, v] = c.tag.split('=');
+      return `
+        node[${k}=${v}](around:${radius},${lat},${lng});
+        way[${k}=${v}](around:${radius},${lat},${lng});
+        relation[${k}=${v}](around:${radius},${lat},${lng});
+      `;
+    }).join('');
+    return `[out:json][timeout:25];(${parts});out center tags;`;
   }
 
   function categorize(tags) {
+    if (!tags) return null;
     if (tags.shop === 'supermarket') return 'supermarkt';
     if (tags.amenity === 'doctors') return 'huisarts';
     if (tags.amenity === 'pharmacy') return 'apotheek';
@@ -29,7 +35,7 @@ window.App = window.App || {};
     return null;
   }
 
-  async function fetchNearby(lat, lng, radius = 1000) {
+  async function fetchNearby(lat, lng, radius = 2000) {
     const body = 'data=' + encodeURIComponent(buildQuery(lat, lng, radius));
     const res = await fetch(OVERPASS_URL, {
       method: 'POST',
@@ -40,15 +46,33 @@ window.App = window.App || {};
     const data = await res.json();
     const elements = data.elements || [];
     const points = [];
+    const seen = new Set();
+
     for (const el of elements) {
-      if (el.type !== 'node') continue;
-      const cat = categorize(el.tags || {});
+      const cat = categorize(el.tags);
       if (!cat) continue;
+
+      // Get coordinates: node has lat/lon directly, way/relation has center
+      let lat2, lng2;
+      if (el.type === 'node') {
+        lat2 = el.lat; lng2 = el.lon;
+      } else if (el.center) {
+        lat2 = el.center.lat; lng2 = el.center.lon;
+      } else {
+        continue;
+      }
+
+      // Dedupe: same name + category within ~50m
+      const name = el.tags?.name || CATEGORIES[cat].label;
+      const key = `${cat}|${name}|${lat2.toFixed(4)}|${lng2.toFixed(4)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
       points.push({
-        id: el.id,
-        lat: el.lat,
-        lng: el.lon,
-        name: el.tags?.name || CATEGORIES[cat].label,
+        id: `${el.type}${el.id}`,
+        lat: lat2,
+        lng: lng2,
+        name,
         category: cat,
       });
     }
