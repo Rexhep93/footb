@@ -1,0 +1,275 @@
+// js/meldingen.js — Officiële Bekendmakingen via KOOP SRU
+// Depends on: window.App, window.App.Address (voor gemeentenaam + postcode)
+
+(function () {
+  'use strict';
+
+  const SRU_BASE = 'https://repository.overheid.nl/sru';
+  const CORS_PROXY = 'https://corsproxy.io/?url=';
+  const PAGE_SIZE = 25;
+  const CACHE_TTL_MS = 30 * 60 * 1000; // 30 min
+
+  // Rubrieken die we tonen (dt.type waarden)
+  const ALLOWED_TYPES = [
+    'omgevingsvergunning',
+    'verkeersbesluit of -mededeling',
+    'ruimtelijk plan of omgevingsdocument',
+    'evenementenvergunning',
+    'andere vergunning',
+    'beleidsregel'
+  ];
+
+  // Korte labels voor UI
+  const TYPE_LABELS = {
+    'omgevingsvergunning': 'Omgevingsvergunning',
+    'verkeersbesluit of -mededeling': 'Verkeer',
+    'ruimtelijk plan of omgevingsdocument': 'Ruimtelijk plan',
+    'evenementenvergunning': 'Evenement',
+    'andere vergunning': 'Vergunning',
+    'beleidsregel': 'Beleid'
+  };
+
+  // State
+  let _currentPage = 1;
+  let _totalRecords = 0;
+  let _allRecords = [];
+  let _buurtOnly = false;
+  let _isLoading = false;
+  let _gemeente = null;
+  let _postcodePrefix = null;
+
+  // ---------- Cache ----------
+  function cacheKey(gemeente, page) {
+    return `dichtbij_meldingen_${gemeente}_p${page}`;
+  }
+  function cacheGet(gemeente, page) {
+    try {
+      const raw = localStorage.getItem(cacheKey(gemeente, page));
+      if (!raw) return null;
+      const { ts, data, total } = JSON.parse(raw);
+      if (Date.now() - ts > CACHE_TTL_MS) return null;
+      return { data, total };
+    } catch { return null; }
+  }
+  function cacheSet(gemeente, page, data, total) {
+    try {
+      localStorage.setItem(cacheKey(gemeente, page), JSON.stringify({
+        ts: Date.now(), data, total
+      }));
+    } catch {}
+  }
+
+  // ---------- SRU fetch ----------
+  function buildQuery(gemeente) {
+    const typeFilter = ALLOWED_TYPES
+      .map(t => `dt.type=="${t}"`)
+      .join(' OR ');
+    return `c.product-area==officielepublicaties AND dt.creator=="${gemeente}" AND (${typeFilter})`;
+  }
+
+  async function fetchPage(gemeente, page) {
+    const cached = cacheGet(gemeente, page);
+    if (cached) return cached;
+
+    const startRecord = (page - 1) * PAGE_SIZE + 1;
+    const query = buildQuery(gemeente);
+    const sruUrl = `${SRU_BASE}?query=${encodeURIComponent(query)} sortBy dt.modified/sort.descending&maximumRecords=${PAGE_SIZE}&startRecord=${startRecord}`;
+    const fullUrl = CORS_PROXY + encodeURIComponent(sruUrl);
+
+    const res = await fetch(fullUrl);
+    if (!res.ok) throw new Error(`SRU fetch failed: ${res.status}`);
+    const xml = await res.text();
+    const parsed = parseSruXml(xml);
+    cacheSet(gemeente, page, parsed.records, parsed.total);
+    return { data: parsed.records, total: parsed.total };
+  }
+
+  // ---------- XML parsing ----------
+  function parseSruXml(xmlText) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xmlText, 'text/xml');
+
+    const perr = doc.querySelector('parsererror');
+    if (perr) throw new Error('XML parse error');
+
+    const getText = (parent, localName) => {
+      const els = parent.getElementsByTagName('*');
+      for (let i = 0; i < els.length; i++) {
+        if (els[i].localName === localName) return els[i].textContent.trim();
+      }
+      return null;
+    };
+    const getAll = (parent, localName) => {
+      const out = [];
+      const els = parent.getElementsByTagName('*');
+      for (let i = 0; i < els.length; i++) {
+        if (els[i].localName === localName) out.push(els[i]);
+      }
+      return out;
+    };
+
+    const totalEl = getAll(doc, 'numberOfRecords')[0];
+    const total = totalEl ? parseInt(totalEl.textContent, 10) : 0;
+
+    const recordEls = getAll(doc, 'record');
+    const records = recordEls.map(rec => {
+      const identifier = getText(rec, 'identifier');
+      const title = getText(rec, 'title');
+      const type = getText(rec, 'type');
+      const modified = getText(rec, 'modified');
+      const abstract = getText(rec, 'abstract');
+      const geometrielabel = getText(rec, 'geometrielabel');
+      const preferredUrl = getText(rec, 'preferredUrl');
+
+      const pcSource = (geometrielabel || title || '');
+      const pcMatch = pcSource.match(/\b(\d{4})\s?[A-Z]{2}\b/);
+      const postcode = pcMatch ? pcMatch[1] : null;
+
+      return {
+        id: identifier,
+        title: title || '(geen titel)',
+        type: type,
+        typeLabel: TYPE_LABELS[type] || type,
+        date: modified,
+        abstract: abstract || '',
+        location: geometrielabel || '',
+        url: preferredUrl,
+        postcodePrefix: postcode
+      };
+    }).filter(r => r.id);
+
+    return { records, total };
+  }
+
+  // ---------- Filter + render ----------
+  function filterRecords(records) {
+    if (!_buurtOnly || !_postcodePrefix) return records;
+    return records.filter(r => r.postcodePrefix === _postcodePrefix);
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function render() {
+    const container = document.getElementById('meldingen-list');
+    const statusEl = document.getElementById('meldingen-status');
+    const moreBtn = document.getElementById('meldingen-more');
+    if (!container) return;
+
+    const filtered = filterRecords(_allRecords);
+
+    if (filtered.length === 0) {
+      if (_isLoading && _allRecords.length === 0) {
+        container.innerHTML = '<div class="meldingen-empty">Laden…</div>';
+      } else if (_buurtOnly) {
+        container.innerHTML = `<div class="meldingen-empty">Geen bekendmakingen in postcode ${_postcodePrefix}. Laad meer of zet de filter uit.</div>`;
+      } else {
+        container.innerHTML = '<div class="meldingen-empty">Geen bekendmakingen gevonden.</div>';
+      }
+    } else {
+      container.innerHTML = filtered.map(r => `
+        <a class="melding-card" href="${r.url}" target="_blank" rel="noopener">
+          <div class="melding-head">
+            <span class="melding-type">${escapeHtml(r.typeLabel)}</span>
+            <span class="melding-date">${formatDate(r.date)}</span>
+          </div>
+          <div class="melding-title">${escapeHtml(r.title)}</div>
+          ${r.location ? `<div class="melding-loc">${escapeHtml(r.location)}</div>` : ''}
+        </a>
+      `).join('');
+    }
+
+    if (statusEl) {
+      const shown = filtered.length;
+      const loaded = _allRecords.length;
+      if (_buurtOnly) {
+        statusEl.textContent = `${shown} in jouw buurt (van ${loaded} geladen)`;
+      } else {
+        statusEl.textContent = loaded > 0 ? `${loaded} van ${_totalRecords} bekendmakingen` : '';
+      }
+    }
+
+    if (moreBtn) {
+      const hasMore = _allRecords.length < _totalRecords;
+      moreBtn.style.display = hasMore ? 'block' : 'none';
+      moreBtn.disabled = _isLoading;
+      moreBtn.textContent = _isLoading ? 'Laden…' : 'Meer laden';
+    }
+  }
+
+  // ---------- Public API ----------
+  async function loadNextPage() {
+    if (_isLoading || !_gemeente) return;
+    _isLoading = true;
+    render();
+    try {
+      const { data, total } = await fetchPage(_gemeente, _currentPage);
+      _totalRecords = total;
+      _allRecords = _allRecords.concat(data);
+      _currentPage += 1;
+    } catch (err) {
+      console.error('[Meldingen]', err);
+      const container = document.getElementById('meldingen-list');
+      if (container && _allRecords.length === 0) {
+        container.innerHTML = '<div class="meldingen-empty meldingen-error">Kon bekendmakingen niet laden.</div>';
+      }
+    } finally {
+      _isLoading = false;
+      render();
+    }
+  }
+
+  function toggleBuurt(on) {
+    _buurtOnly = !!on;
+    render();
+  }
+
+  async function init() {
+    const addr = window.App && window.App.Address ? window.App.Address.get() : null;
+    if (!addr || !addr.gemeente) {
+      const container = document.getElementById('meldingen-list');
+      if (container) {
+        container.innerHTML = '<div class="meldingen-empty">Stel eerst een adres in.</div>';
+      }
+      return;
+    }
+
+    _gemeente = addr.gemeente;
+    _postcodePrefix = addr.postcode ? String(addr.postcode).replace(/\s/g, '').slice(0, 4) : null;
+    _currentPage = 1;
+    _allRecords = [];
+    _totalRecords = 0;
+
+    const buurtLabel = document.getElementById('meldingen-buurt-label');
+    if (buurtLabel && _postcodePrefix) {
+      buurtLabel.textContent = `Alleen postcode ${_postcodePrefix}`;
+    }
+
+    const toggle = document.getElementById('meldingen-buurt-toggle');
+    if (toggle && !toggle._bound) {
+      toggle.addEventListener('change', e => toggleBuurt(e.target.checked));
+      toggle._bound = true;
+    }
+    const moreBtn = document.getElementById('meldingen-more');
+    if (moreBtn && !moreBtn._bound) {
+      moreBtn.addEventListener('click', () => loadNextPage());
+      moreBtn._bound = true;
+    }
+
+    await loadNextPage();
+  }
+
+  window.App = window.App || {};
+  window.App.Meldingen = { init, loadNextPage, toggleBuurt };
+})();
