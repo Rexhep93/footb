@@ -152,12 +152,12 @@ window.App = window.App || {};
     content.id = 'tab-content';
     root.appendChild(content);
     const tabs = [
-  { id: 'thuis', label: 'Thuis', icon: I.nav_home },
-  { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
-  { id: 'kaart', label: 'Kaart', icon: I.nav_map },
-  { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
-  { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
-];
+      { id: 'thuis', label: 'Thuis', icon: I.nav_home },
+      { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
+      { id: 'kaart', label: 'Kaart', icon: I.nav_map },
+      { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
+      { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
+    ];
     const nav = el('nav', 'bottom-nav');
     const inner = el('div', 'bottom-nav-inner');
     for (const t of tabs) {
@@ -339,115 +339,156 @@ window.App = window.App || {};
 
   // Module-level state voor meldingen (overleeft tab-switches)
   const _meldingenState = {
-    gemeente: null,
+    addrKey: null,
+    radiusKm: 1,
     page: 1,
     total: 0,
     records: [],
-    buurtOnly: false,
     loading: false,
     error: null
   };
- 
+
   async function renderMeldingenTab(content, addr) {
-    const gemeente = addr.municipality?.name;
-    const postcodePrefix = addr.postcode ? String(addr.postcode).replace(/\s/g, '').slice(0, 4) : null;
- 
-    // Reset state als gemeente veranderd is
-    if (_meldingenState.gemeente !== gemeente) {
-      _meldingenState.gemeente = gemeente;
+    const coords = addr.coords;
+    const addrKey = addr.bag?.nummeraanduidingId || `${coords?.lat},${coords?.lng}`;
+
+    if (_meldingenState.addrKey !== addrKey) {
+      _meldingenState.addrKey = addrKey;
+      _meldingenState.radiusKm = 1;
       _meldingenState.page = 1;
       _meldingenState.total = 0;
       _meldingenState.records = [];
-      _meldingenState.buurtOnly = false;
       _meldingenState.error = null;
     }
- 
+
     const wrap = el('div', 'container meldingen-wrap');
     wrap.innerHTML = `
       <div class="meldingen-header">
         <div class="meldingen-title">Bekendmakingen</div>
-        <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties uit ${gemeente || 'jouw gemeente'}</div>
+        <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties binnen een straal rondom jouw adres</div>
       </div>
-      ${postcodePrefix ? `
-        <label class="meldingen-toggle">
-          <input type="checkbox" id="meldingen-buurt-toggle" ${_meldingenState.buurtOnly ? 'checked' : ''}>
-          <span>Alleen postcode ${postcodePrefix}</span>
-        </label>
-      ` : ''}
+
+      <div class="radius-card">
+        <div class="radius-map" id="meldingen-map"></div>
+        <div class="radius-controls">
+          <div class="radius-label">
+            <span>Straal</span>
+            <strong id="meldingen-radius-value">${_meldingenState.radiusKm} km</strong>
+          </div>
+          <input type="range" id="meldingen-radius" min="1" max="5" step="1" value="${_meldingenState.radiusKm}">
+          <div class="radius-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+        </div>
+      </div>
+
       <div id="meldingen-list"></div>
       <button class="btn meldingen-more" id="meldingen-more" style="display:none">Meer laden</button>
     `;
     content.appendChild(wrap);
- 
-    if (!gemeente) {
-      wrap.querySelector('#meldingen-sub').textContent = 'Gemeentegegevens ontbreken. Voer je adres opnieuw in via Instellingen.';
+
+    if (!coords) {
+      wrap.querySelector('#meldingen-sub').textContent = 'Locatie ontbreekt. Voer je adres opnieuw in via Instellingen.';
       return;
     }
- 
+
     const listEl = wrap.querySelector('#meldingen-list');
     const subEl = wrap.querySelector('#meldingen-sub');
     const moreBtn = wrap.querySelector('#meldingen-more');
-    const toggle = wrap.querySelector('#meldingen-buurt-toggle');
- 
+    const slider = wrap.querySelector('#meldingen-radius');
+    const radiusValEl = wrap.querySelector('#meldingen-radius-value');
+
+    let mapInstance = null;
+    let radiusCircle = null;
+
+    function initMap() {
+      setTimeout(() => {
+        mapInstance = L.map('meldingen-map', {
+          zoomControl: false,
+          attributionControl: false,
+          dragging: false,
+          scrollWheelZoom: false,
+          doubleClickZoom: false,
+          touchZoom: false,
+          boxZoom: false,
+          keyboard: false
+        }).setView([coords.lat, coords.lng], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapInstance);
+
+        L.circleMarker([coords.lat, coords.lng], {
+          radius: 5, color: '#fff', weight: 2, fillColor: '#1a2e28', fillOpacity: 1
+        }).addTo(mapInstance);
+
+        radiusCircle = L.circle([coords.lat, coords.lng], {
+          radius: _meldingenState.radiusKm * 1000,
+          color: '#1a2e28', weight: 2, fillColor: '#1a2e28', fillOpacity: 0.12
+        }).addTo(mapInstance);
+
+        fitMap();
+      }, 50);
+    }
+
+    function fitMap() {
+      if (!mapInstance || !radiusCircle) return;
+      mapInstance.fitBounds(radiusCircle.getBounds(), { padding: [20, 20] });
+    }
+
+    function updateMapRadius(km) {
+      if (!radiusCircle) return;
+      radiusCircle.setRadius(km * 1000);
+      fitMap();
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
     function renderList() {
-      const filtered = _meldingenState.buurtOnly && postcodePrefix
-        ? _meldingenState.records.filter(r => r.postcodePrefix === postcodePrefix)
-        : _meldingenState.records;
- 
       if (_meldingenState.error && _meldingenState.records.length === 0) {
         listEl.innerHTML = '<div class="state-msg">Bekendmakingen tijdelijk niet beschikbaar.</div>';
         subEl.textContent = '';
         moreBtn.style.display = 'none';
         return;
       }
- 
       if (_meldingenState.records.length === 0 && _meldingenState.loading) {
         listEl.innerHTML = '<div class="state-msg">Laden…</div>';
+        subEl.textContent = `Binnen ${_meldingenState.radiusKm} km`;
+        moreBtn.style.display = 'none';
         return;
       }
- 
-      if (filtered.length === 0) {
-        if (_meldingenState.buurtOnly) {
-          listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen in postcode ${postcodePrefix}. Laad meer of zet de filter uit.</div>`;
-        } else {
-          listEl.innerHTML = '<div class="state-msg">Geen bekendmakingen gevonden.</div>';
-        }
-      } else {
-        listEl.innerHTML = filtered.map(r => `
-          <a class="melding-card" href="${r.url}" target="_blank" rel="noopener noreferrer">
-            <div class="melding-meta">
-              <span class="melding-type">${r.typeLabel}</span>
-              <span class="melding-date">${window.App.meldingen.formatDate(r.date)}</span>
-            </div>
-            <div class="melding-title">${escapeHtml(r.title)}</div>
-            ${r.location ? `<div class="melding-loc">${escapeHtml(r.location)}</div>` : ''}
-          </a>
-        `).join('');
+      if (_meldingenState.records.length === 0) {
+        listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen binnen ${_meldingenState.radiusKm} km.</div>`;
+        subEl.textContent = '';
+        moreBtn.style.display = 'none';
+        return;
       }
- 
-      // Sub + more button
-      if (_meldingenState.buurtOnly) {
-        subEl.textContent = `${filtered.length} in jouw buurt (van ${_meldingenState.records.length} geladen)`;
-      } else {
-        subEl.textContent = `${_meldingenState.records.length} van ${_meldingenState.total} bekendmakingen`;
-      }
+
+      listEl.innerHTML = _meldingenState.records.map(r => `
+        <a class="melding-card" href="${r.url}" target="_blank" rel="noopener noreferrer">
+          <div class="melding-meta">
+            <span class="melding-type">${r.typeLabel}</span>
+            <span class="melding-date">${window.App.meldingen.formatDate(r.date)}</span>
+          </div>
+          <div class="melding-title">${escapeHtml(r.title)}</div>
+          ${r.location ? `<div class="melding-loc">${escapeHtml(r.location)}</div>` : ''}
+        </a>
+      `).join('');
+
+      subEl.textContent = `${_meldingenState.records.length} van ${_meldingenState.total} binnen ${_meldingenState.radiusKm} km`;
       const hasMore = _meldingenState.records.length < _meldingenState.total;
       moreBtn.style.display = hasMore ? 'block' : 'none';
       moreBtn.disabled = _meldingenState.loading;
       moreBtn.textContent = _meldingenState.loading ? 'Laden…' : 'Meer laden';
     }
- 
-    function escapeHtml(s) {
-      if (!s) return '';
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
- 
+
     async function loadNext() {
       if (_meldingenState.loading) return;
       _meldingenState.loading = true;
       renderList();
       try {
-        const { records, total } = await window.App.meldingen.fetchPage(gemeente, _meldingenState.page);
+        const { records, total } = await window.App.meldingen.fetchPage(
+          coords.lat, coords.lng, _meldingenState.radiusKm, _meldingenState.page
+        );
         _meldingenState.total = total;
         _meldingenState.records = _meldingenState.records.concat(records);
         _meldingenState.page += 1;
@@ -460,16 +501,28 @@ window.App = window.App || {};
         renderList();
       }
     }
- 
-    if (toggle) {
-      toggle.addEventListener('change', e => {
-        _meldingenState.buurtOnly = e.target.checked;
-        renderList();
-      });
+
+    async function resetAndLoad() {
+      _meldingenState.page = 1;
+      _meldingenState.total = 0;
+      _meldingenState.records = [];
+      _meldingenState.error = null;
+      await loadNext();
     }
+
+    let sliderTimer = null;
+    slider.addEventListener('input', e => {
+      const km = parseInt(e.target.value, 10);
+      _meldingenState.radiusKm = km;
+      radiusValEl.textContent = `${km} km`;
+      updateMapRadius(km);
+      if (sliderTimer) clearTimeout(sliderTimer);
+      sliderTimer = setTimeout(() => resetAndLoad(), 300);
+    });
+
     moreBtn.addEventListener('click', loadNext);
- 
-    // Initial render
+
+    initMap();
     renderList();
     if (_meldingenState.records.length === 0 && !_meldingenState.error) {
       loadNext();
@@ -477,44 +530,44 @@ window.App = window.App || {};
   }
 
   function renderThuisTab(content, addr, handlers) {
-  const wrap = el('div', 'container thuis-wrap');
-  wrap.innerHTML = `
-    <div class="thuis-header">
-      <div class="thuis-label">Welkom thuis</div>
-      <div class="thuis-title">Jouw buurt in een overzicht</div>
-      <div class="thuis-sub">${addr.neighborhood?.name || addr.city}, ${addr.municipality?.name || ''}</div>
-    </div>
+    const wrap = el('div', 'container thuis-wrap');
+    wrap.innerHTML = `
+      <div class="thuis-header">
+        <div class="thuis-label">Welkom thuis</div>
+        <div class="thuis-title">Jouw buurt in een overzicht</div>
+        <div class="thuis-sub">${addr.neighborhood?.name || addr.city}, ${addr.municipality?.name || ''}</div>
+      </div>
 
-    <section class="thuis-block">
-      <div class="thuis-block-title">In het kort</div>
-      <div class="thuis-block-body">Binnenkort: visuele statistieken vergeleken met de rest van Nederland.</div>
-      <button class="thuis-link" data-go="buurt">Lees meer over jouw buurt →</button>
-    </section>
+      <section class="thuis-block">
+        <div class="thuis-block-title">In het kort</div>
+        <div class="thuis-block-body">Binnenkort: visuele statistieken vergeleken met de rest van Nederland.</div>
+        <button class="thuis-link" data-go="buurt">Lees meer over jouw buurt →</button>
+      </section>
 
-    <section class="thuis-block">
-      <div class="thuis-block-title">Laatste nieuws</div>
-      <div class="thuis-block-body">Binnenkort: het meest recente artikel uit jouw gemeente.</div>
-      <button class="thuis-link" data-go="nieuws">Meer nieuws over jouw buurt →</button>
-    </section>
+      <section class="thuis-block">
+        <div class="thuis-block-title">Laatste nieuws</div>
+        <div class="thuis-block-body">Binnenkort: het meest recente artikel uit jouw gemeente.</div>
+        <button class="thuis-link" data-go="nieuws">Meer nieuws over jouw buurt →</button>
+      </section>
 
-    <section class="thuis-block">
-      <div class="thuis-block-title">Meldingen</div>
-      <div class="thuis-block-body">Binnenkort: officiële bekendmakingen uit jouw omgeving.</div>
-      <button class="thuis-link" data-go="meldingen">Bekijk alle meldingen →</button>
-    </section>
+      <section class="thuis-block">
+        <div class="thuis-block-title">Meldingen</div>
+        <div class="thuis-block-body">Binnenkort: officiële bekendmakingen uit jouw omgeving.</div>
+        <button class="thuis-link" data-go="meldingen">Bekijk alle meldingen →</button>
+      </section>
 
-    <section class="thuis-block">
-      <div class="thuis-block-title">Dichtbij</div>
-      <div class="thuis-block-body">Binnenkort: dichtstbijzijnde supermarkt, buitenplek en eetgelegenheid.</div>
-      <button class="thuis-link" data-go="kaart">Open de kaart →</button>
-    </section>
-  `;
-  content.appendChild(wrap);
+      <section class="thuis-block">
+        <div class="thuis-block-title">Dichtbij</div>
+        <div class="thuis-block-body">Binnenkort: dichtstbijzijnde supermarkt, buitenplek en eetgelegenheid.</div>
+        <button class="thuis-link" data-go="kaart">Open de kaart →</button>
+      </section>
+    `;
+    content.appendChild(wrap);
 
-  wrap.querySelectorAll('[data-go]').forEach(btn => {
-    btn.addEventListener('click', () => handlers.onTab(btn.dataset.go));
-  });
-}
+    wrap.querySelectorAll('[data-go]').forEach(btn => {
+      btn.addEventListener('click', () => handlers.onTab(btn.dataset.go));
+    });
+  }
 
   window.App.render = {
     onboarding(onSubmit) {
@@ -545,14 +598,14 @@ window.App = window.App || {};
       });
       wrap.querySelector('#pc').focus();
     },
-shell(activeTab, addr, stats, handlers) {
-  const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
-  if (activeTab === 'thuis') renderThuisTab(content, addr, handlers);
-  else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
-  else if (activeTab === 'kaart') renderKaartTab(content, addr);
-  else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
-  else if (activeTab === 'meldingen') renderMeldingenTab(content, addr);
-},
+    shell(activeTab, addr, stats, handlers) {
+      const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
+      if (activeTab === 'thuis') renderThuisTab(content, addr, handlers);
+      else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
+      else if (activeTab === 'kaart') renderKaartTab(content, addr);
+      else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
+      else if (activeTab === 'meldingen') renderMeldingenTab(content, addr);
+    },
     openSettings(onChangeAddress) {
       renderSettingsSheet(null, onChangeAddress);
     },
