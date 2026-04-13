@@ -1040,3 +1040,110 @@ body {
 .thuis-pub-skeleton .thuis-pub-row {
   height: 22px;
 }
+
+/* ============================================================
+   Vandaag-blok in Thuis-tab
+   ============================================================ */
+
+.thuis-vandaag {
+  background: linear-gradient(135deg, #1a2e28 0%, #2a4a3e 100%);
+  color: #fff;
+  border: none;
+}
+
+.thuis-vandaag-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.thuis-vandaag-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8fc9a3;
+}
+
+.thuis-vandaag-date {
+  font-size: 12px;
+  color: #b8d4c2;
+}
+
+.thuis-vandaag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.thuis-vandaag-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  min-height: 48px;
+  border-left: 3px solid transparent;
+}
+
+.thuis-vandaag-item.urgency-info { border-left-color: #6bb7e0; }
+.thuis-vandaag-item.urgency-warn { border-left-color: #f0a838; }
+.thuis-vandaag-item.urgency-alert { border-left-color: #e27878; }
+
+.thuis-vandaag-clickable {
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.thuis-vandaag-clickable:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.thuis-vandaag-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.thuis-vandaag-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.thuis-vandaag-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.thuis-vandaag-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+}
+
+.thuis-vandaag-subtitle {
+  font-size: 12px;
+  color: #b8d4c2;
+  margin-top: 2px;
+}
+
+.thuis-vandaag-empty {
+  font-size: 13px;
+  color: #b8d4c2;
+  padding: 8px 0;
+  text-align: center;
+}
+
+/* Skeleton in donker blok aanpassen */
+.thuis-vandaag .skeleton-row {
+  background: linear-gradient(90deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 100%);
+  background-size: 200px 100%;
+}
