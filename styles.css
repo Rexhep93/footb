@@ -349,3 +349,72 @@ body {
   text-align: left;
 }
 .thuis-link:hover { text-decoration: underline; }
+
+/* ========= Meldingen-tab ========= */
+.meldingen-wrap { padding-top: 20px; }
+.meldingen-header { margin-bottom: 16px; }
+.meldingen-title {
+  font-family: 'Fraunces', serif;
+  font-size: 24px; font-weight: 600;
+  line-height: 1.2;
+}
+.meldingen-sub {
+  font-size: 13px; color: var(--ink-soft);
+  margin-top: 4px;
+}
+.meldingen-toggle {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.meldingen-toggle input { accent-color: var(--accent); cursor: pointer; }
+ 
+.melding-card {
+  display: block;
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 0 rgba(0,0,0,0.02);
+  text-decoration: none;
+  color: var(--ink);
+  transition: transform 0.15s;
+}
+.melding-card:hover { transform: translateY(-1px); }
+.melding-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+.melding-type {
+  background: var(--card-header);
+  color: var(--card-header-ink);
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+.melding-date {
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.melding-title {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+  margin-bottom: 6px;
+}
+.melding-loc {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.meldingen-more { margin-top: 8px; }
