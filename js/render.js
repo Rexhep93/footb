@@ -69,23 +69,20 @@ window.App = window.App || {};
 
   const METRICS = [
     {
-      key: 'inwoners',
-      label: 'Inwoners',
+      key: 'inwoners', label: 'Inwoners', icon: 'users',
       getValue: s => Number(s.AantalInwoners_5),
       getNl: nl => null,
       format: v => n(v),
       noCompare: true,
     },
     {
-      key: 'leeftijd',
-      label: 'Gem. leeftijd',
+      key: 'leeftijd', label: 'Gem. leeftijd', icon: 'cake',
       getValue: s => avgAge(s),
       getNl: nl => avgAge(nl),
       format: v => `${nf1.format(v)} jaar`,
     },
     {
-      key: 'inkomen',
-      label: 'Inkomen per persoon',
+      key: 'inkomen', label: 'Inkomen per persoon', icon: 'euro',
       getValue: s => {
         const v = Number(s.GemiddeldInkomenPerInwoner_78);
         return (isNaN(v) || v <= 0) ? null : v;
@@ -97,8 +94,7 @@ window.App = window.App || {};
       format: v => `€${nf.format(Math.round(v * 1000))}`,
     },
     {
-      key: 'woz',
-      label: 'WOZ-waarde',
+      key: 'woz', label: 'WOZ-waarde', icon: 'tag',
       getValue: s => {
         const v = Number(s.GemiddeldeWOZWaardeVanWoningen_39);
         return (isNaN(v) || v <= 0) ? null : v;
@@ -110,35 +106,31 @@ window.App = window.App || {};
       format: v => `€${nf.format(Math.round(v * 1000))}`,
     },
     {
-      key: 'koop',
-      label: 'Koopwoningen',
+      key: 'koop', label: 'Koopwoningen', icon: 'key',
       getValue: s => Number(s.Koopwoningen_47),
       getNl: nl => Number(nl?.Koopwoningen_47),
       format: v => `${nf1.format(v)}%`,
     },
     {
-      key: 'huishouden',
-      label: 'Personen per huishouden',
+      key: 'huishouden', label: 'Personen per huishouden', icon: 'family',
       getValue: s => Number(s.GemiddeldeHuishoudensgrootte_33),
       getNl: nl => Number(nl?.GemiddeldeHuishoudensgrootte_33),
       format: v => nf1.format(v),
     },
     {
-      key: 'zon',
-      label: 'Zonnepanelen',
+      key: 'zon', label: 'Zonnepanelen', icon: 'sun',
       getValue: s => Number(s.WoningenMetZonnestroom_59),
       getNl: nl => Number(nl?.WoningenMetZonnestroom_59),
       format: v => `${nf1.format(v)}%`,
     },
     {
-      key: 'auto',
-      label: "Auto's per huishouden",
+      key: 'auto', label: "Auto's per huishouden", icon: 'auto',
       getValue: s => Number(s.PersonenautoSPerHuishouden_107),
       getNl: nl => Number(nl?.PersonenautoSPerHuishouden_107),
       format: v => nf1.format(v),
     },
   ];
-
+  
   function computeMetric(metric, stats, nl) {
     const value = metric.getValue(stats);
     if (value === null || value === undefined || isNaN(value)) return null;
@@ -163,7 +155,7 @@ window.App = window.App || {};
     };
   }
 
-  function renderMetricCard(metric, computed, onTap) {
+ function renderMetricCard(metric, computed, onTap) {
     const card = el('button', 'metric-card');
     card.type = 'button';
 
@@ -196,8 +188,13 @@ window.App = window.App || {};
       `;
     }
 
+    const iconHtml = metric.icon && I[metric.icon] ? `<div class="metric-icon">${I[metric.icon]}</div>` : '';
+
     card.innerHTML = `
-      <div class="metric-label">${metric.label}</div>
+      <div class="metric-top">
+        ${iconHtml}
+        <div class="metric-label">${metric.label}</div>
+      </div>
       <div class="metric-value">${computed.formatted}</div>
       ${diffHtml}
       ${barHtml}
@@ -211,10 +208,6 @@ window.App = window.App || {};
     const lines = [];
     const computed = computeMetric(metric, stats, nl);
     if (!computed) return '<p>Geen gegevens beschikbaar.</p>';
-
-    lines.push(`<p>In jouw buurt: <strong>${computed.formatted}</strong>.</p>`);
-    if (computed.nlFormatted) {
-      lines.push(`<p>Nederlands gemiddelde: <strong>${computed.nlFormatted}</strong>.</p>`);
     }
 
     if (metric.key === 'inwoners' && has(stats.Mannen_6) && has(stats.Vrouwen_7)) {
@@ -265,11 +258,48 @@ window.App = window.App || {};
     const backdrop = el('div', 'sheet-backdrop');
     const sheet = el('div', 'sheet');
 
+    const computed = computeMetric(metric, stats, nl);
+    const iconHtml = metric.icon && I[metric.icon] ? `<div class="sheet-hero-icon">${I[metric.icon]}</div>` : '';
+
+    let heroHtml = '';
+    let compareHtml = '';
+    if (computed) {
+      heroHtml = `<div class="sheet-hero-value">${computed.formatted}</div>`;
+      if (computed.diffPct !== null) {
+        const up = computed.diffPct > 0;
+        const sign = up ? '+' : '';
+        const cls = up ? 'diff-up' : 'diff-down';
+        const arrow = up ? '↑' : '↓';
+        heroHtml += `<div class="sheet-hero-diff ${cls}">${arrow} ${sign}${nf1.format(computed.diffPct)}% t.o.v. Nederland</div>`;
+      }
+      if (!metric.noCompare && computed.nlFormatted) {
+        compareHtml = `
+          <div class="sheet-compare">
+            <div class="sheet-compare-row">
+              <span class="sheet-compare-label">Jouw buurt</span>
+              <span class="sheet-compare-value">${computed.formatted}</span>
+              <div class="sheet-compare-track"><div class="sheet-compare-fill sheet-compare-buurt" style="width:${computed.barBuurt}%"></div></div>
+            </div>
+            <div class="sheet-compare-row">
+              <span class="sheet-compare-label">Nederland</span>
+              <span class="sheet-compare-value">${computed.nlFormatted}</span>
+              <div class="sheet-compare-track"><div class="sheet-compare-fill sheet-compare-nl" style="width:${computed.barNl}%"></div></div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
     const body = buildDetailContent(metric, stats, nl);
 
     sheet.innerHTML = `
       <div class="sheet-handle"></div>
-      <h2 class="sheet-title">${metric.label}</h2>
+      <div class="sheet-hero">
+        ${iconHtml}
+        <div class="sheet-hero-label">${metric.label}</div>
+        ${heroHtml}
+      </div>
+      ${compareHtml}
       <div class="sheet-body">${body}</div>
     `;
 
