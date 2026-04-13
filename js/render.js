@@ -296,6 +296,9 @@ window.App = window.App || {};
 
     const container = el('div', 'container buurt-wrap');
 
+    console.log('[buurt] stats:', stats);
+    console.log('[buurt] inkomen raw:', stats?.GemiddeldInkomenPerInwoner_78, typeof stats?.GemiddeldInkomenPerInwoner_78);
+    
     if (stats === null) {
       container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
       content.appendChild(container); return;
