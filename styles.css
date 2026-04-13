@@ -613,3 +613,108 @@ body {
 .sheet-body p { margin: 0 0 12px; }
 .sheet-body p:last-child { margin-bottom: 0; }
 .sheet-body strong { font-weight: 600; }
+
+/* Metric card icon */
+.metric-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.metric-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.metric-icon svg { width: 20px; height: 20px; }
+.metric-top .metric-label { margin: 0; }
+
+/* Sheet hero */
+.sheet-hero {
+  padding: 8px 0 20px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+.sheet-hero-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: var(--card-header);
+  color: var(--card-header-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.sheet-hero-icon svg { width: 26px; height: 26px; }
+.sheet-hero-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-bottom: 6px;
+}
+.sheet-hero-value {
+  font-family: 'Fraunces', serif;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.sheet-hero-diff {
+  font-size: 13px;
+  font-weight: 500;
+}
+.sheet-hero-diff.diff-up { color: #2d7a3e; }
+.sheet-hero-diff.diff-down { color: #a8322a; }
+
+/* Sheet compare bars */
+.sheet-compare {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+.sheet-compare-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  row-gap: 4px;
+  align-items: center;
+}
+.sheet-compare-row + .sheet-compare-row { margin-top: 14px; }
+.sheet-compare-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  grid-column: 1;
+  grid-row: 1;
+}
+.sheet-compare-value {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink);
+  grid-column: 2;
+  grid-row: 1;
+  text-align: right;
+}
+.sheet-compare-track {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 8px;
+  background: var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.sheet-compare-fill {
+  height: 100%;
+  border-radius: 4px;
+}
+.sheet-compare-buurt { background: var(--accent); }
+.sheet-compare-nl { background: var(--ink-faint); }
