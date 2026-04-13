@@ -1,19 +1,12 @@
 window.App = window.App || {};
 (function () {
-  // Elke fetcher retourneert: { items: [...] } of null als niks relevants vandaag
-  // items: { icon, title, subtitle, urgency: 'info'|'warn'|'alert', tapAction? }
-
   const CORS_PROXY = 'https://corsproxy.io/?url=';
 
   // ============================================================
   // BUIENRADAR — neerslag volgende 2 uur per 5 min
   // ============================================================
-  // API: https://gps.buienradar.nl/getrr.php?lat=X&lon=Y
-  // Response: 24 regels "waarde|HH:MM"
-  // Waarde 0 = droog, 255 = zwaar. Intensiteit = 10^((waarde-109)/32) mm/u
-  // Drempels: 77 = 0.1 mm/u, 100 = ~1 mm/u, 140 = ~10 mm/u
 
-  const RAIN_THRESHOLD = 77; // vanaf hier zeggen we "regen"
+  const RAIN_THRESHOLD = 77;
 
   function valueToMmPerHour(v) {
     if (v <= 0) return 0;
@@ -40,7 +33,6 @@ window.App = window.App || {};
       const mm = parseInt(m[3], 10);
       const t = new Date(now);
       t.setHours(hh, mm, 0, 0);
-      // Als tijdstip > 30 min voor nu ligt, is het morgen
       if (t.getTime() < now.getTime() - 30 * 60 * 1000) t.setDate(t.getDate() + 1);
       const minutesFromNow = Math.round((t.getTime() - now.getTime()) / 60000);
       points.push({ time: `${m[2]}:${m[3]}`, value, minutesFromNow });
@@ -50,7 +42,6 @@ window.App = window.App || {};
 
   function analyzeRain(points) {
     if (!points || points.length === 0) return null;
-
     const rainPoints = points.map(p => ({ ...p, isRain: p.value >= RAIN_THRESHOLD }));
     const nowRaining = rainPoints[0]?.isRain;
 
@@ -59,24 +50,14 @@ window.App = window.App || {};
       if (stopIdx > 0) {
         const stopPoint = rainPoints[stopIdx];
         const maxVal = Math.max(...rainPoints.slice(0, stopIdx).map(p => p.value));
-        return {
-          icon: 'rain',
-          title: `Regen tot ${stopPoint.time}`,
-          subtitle: `Nu ${describeIntensity(valueToMmPerHour(maxVal))}`,
-          urgency: 'info',
-        };
+        return { icon: 'rain', title: `Regen tot ${stopPoint.time}`, subtitle: `Nu ${describeIntensity(valueToMmPerHour(maxVal))}`, urgency: 'info' };
       }
       const maxVal = Math.max(...rainPoints.map(p => p.value));
-      return {
-        icon: 'rain',
-        title: 'Regen',
-        subtitle: `${describeIntensity(valueToMmPerHour(maxVal))}, blijft aanhouden`,
-        urgency: 'warn',
-      };
+      return { icon: 'rain', title: 'Regen', subtitle: `${describeIntensity(valueToMmPerHour(maxVal))}, blijft aanhouden`, urgency: 'warn' };
     }
 
     const startIdx = rainPoints.findIndex(p => p.isRain);
-    if (startIdx === -1) return null; // 2u droog, geen item
+    if (startIdx === -1) return null;
 
     const startPoint = rainPoints[startIdx];
     const endIdx = rainPoints.findIndex((p, i) => i > startIdx && !p.isRain);
@@ -86,11 +67,8 @@ window.App = window.App || {};
     const minsUntil = startPoint.minutesFromNow;
 
     let subtitle;
-    if (durationMin >= 115) {
-      subtitle = `${describeIntensity(valueToMmPerHour(maxVal))}, houdt aan`;
-    } else {
-      subtitle = `~${durationMin} min, ${describeIntensity(valueToMmPerHour(maxVal))}`;
-    }
+    if (durationMin >= 115) subtitle = `${describeIntensity(valueToMmPerHour(maxVal))}, houdt aan`;
+    else subtitle = `~${durationMin} min, ${describeIntensity(valueToMmPerHour(maxVal))}`;
 
     return {
       icon: 'rain',
@@ -103,27 +81,19 @@ window.App = window.App || {};
   async function fetchBuienradar(addr) {
     const coords = addr.coords;
     if (!coords) return null;
-
     const url = `https://gps.buienradar.nl/getrr.php?lat=${coords.lat.toFixed(3)}&lon=${coords.lng.toFixed(3)}`;
-
     let text = null;
     try {
       const res = await fetch(url);
       if (res.ok) text = await res.text();
-    } catch (e) {
-      // CORS of netwerk — probeer proxy
-    }
+    } catch (e) {}
     if (!text) {
       try {
         const res = await fetch(CORS_PROXY + encodeURIComponent(url));
         if (res.ok) text = await res.text();
-      } catch (e) {
-        console.error('[buienradar] proxy failed', e);
-        return null;
-      }
+      } catch (e) { console.error('[buienradar] proxy failed', e); return null; }
     }
     if (!text) return null;
-
     const points = parseBuienradarResponse(text);
     const item = analyzeRain(points);
     if (!item) return null;
@@ -131,11 +101,132 @@ window.App = window.App || {};
   }
 
   // ============================================================
-  // STUBS — per bron invullen
+  // POLITIE.NL — gemeente RSS, nieuws-items laatste 24u
+  // ============================================================
+  // URL: https://rss.politie.nl/rss/ab/gemeenten/{provincie}/{gemeente}.xml
+  // 'ab' bevat nieuws + gezocht + vermist. Wij tonen alleen nieuws (incidenten e.d.)
+
+  const PROVINCE_SLUGS = {
+    'Drenthe': 'drenthe',
+    'Flevoland': 'flevoland',
+    'Friesland': 'fryslan',
+    'Fryslân': 'fryslan',
+    'Gelderland': 'gelderland',
+    'Groningen': 'groningen',
+    'Limburg': 'limburg',
+    'Noord-Brabant': 'noord-brabant',
+    'Noord-Holland': 'noord-holland',
+    'Overijssel': 'overijssel',
+    'Utrecht': 'utrecht',
+    'Zeeland': 'zeeland',
+    'Zuid-Holland': 'zuid-holland',
+  };
+
+  // Gemeente-slug uitzonderingen (als politie.nl afwijkende slug heeft)
+  const GEMEENTE_SLUG_OVERRIDES = {
+    "'s-Hertogenbosch": 'den-bosch',
+    'Bergen (L)': 'bergen-lb',
+    'Bergen (NH)': 'bergen-nh',
+    'Land van Cuijk': 'land-van-cuijck',
+  };
+
+  function slugifyGemeente(name) {
+    if (GEMEENTE_SLUG_OVERRIDES[name]) return GEMEENTE_SLUG_OVERRIDES[name];
+    return name
+      .toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/['’]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '');
+  }
+
+  function getXmlText(parent, tag) {
+    const el = parent.getElementsByTagName(tag)[0];
+    return el ? (el.textContent || '').trim() : '';
+  }
+
+  function parsePolitieRss(xmlText) {
+    const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+    if (doc.querySelector('parsererror')) return [];
+    const items = Array.from(doc.getElementsByTagName('item'));
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    return items
+      .map(it => {
+        const title = getXmlText(it, 'title');
+        const link = getXmlText(it, 'link');
+        const pubDateStr = getXmlText(it, 'pubDate');
+        const category = getXmlText(it, 'category');
+        const pubDate = pubDateStr ? new Date(pubDateStr) : null;
+        return { title, link, pubDate, category };
+      })
+      .filter(item => {
+        if (!item.pubDate || isNaN(item.pubDate)) return false;
+        if (now - item.pubDate.getTime() > DAY) return false;
+        const link = (item.link || '').toLowerCase();
+        if (link.includes('/gezocht/') || link.includes('/vermist/')) return false;
+        if (item.category && /gezocht|vermist/i.test(item.category)) return false;
+        return true;
+      });
+  }
+
+  function formatRelativeTime(date) {
+    const diffMin = Math.round((Date.now() - date.getTime()) / 60000);
+    if (diffMin < 60) return `${diffMin} min geleden`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `${diffH} uur geleden`;
+    return 'gisteren';
+  }
+
+  async function fetchVeiligheid(addr) {
+    const provName = addr.province?.name;
+    const gemName = addr.municipality?.name;
+    if (!provName || !gemName) return null;
+
+    const provSlug = PROVINCE_SLUGS[provName];
+    if (!provSlug) {
+      console.warn('[politie] onbekende provincie:', provName);
+      return null;
+    }
+    const gemSlug = slugifyGemeente(gemName);
+    const url = `https://rss.politie.nl/rss/ab/gemeenten/${provSlug}/${gemSlug}.xml`;
+
+    let xmlText = null;
+    try {
+      const res = await fetch(url);
+      if (res.ok) xmlText = await res.text();
+    } catch (e) {}
+    if (!xmlText) {
+      try {
+        const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+        if (res.ok) xmlText = await res.text();
+      } catch (e) { console.error('[politie] proxy failed', e); return null; }
+    }
+    if (!xmlText) return null;
+
+    const items = parsePolitieRss(xmlText);
+    if (items.length === 0) return null;
+
+    // Max 2 meest recente
+    const topItems = items.slice(0, 2);
+
+    return {
+      items: topItems.map(item => ({
+        icon: 'shield',
+        title: item.title,
+        subtitle: `Politie ${gemName} · ${formatRelativeTime(item.pubDate)}`,
+        urgency: 'alert',
+        tapAction: () => window.open(item.link, '_blank', 'noopener'),
+      })),
+    };
+  }
+
+  // ============================================================
+  // STUBS — volgt per bron
   // ============================================================
 
   async function fetchAfval(addr) { return null; }
-  async function fetchVeiligheid(addr) { return null; }
   async function fetchWegwerk(addr) { return null; }
   async function fetchLokaalNieuws(addr) { return null; }
   async function fetchPublicatiesImpact(addr) { return null; }
