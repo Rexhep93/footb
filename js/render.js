@@ -21,8 +21,14 @@ window.App = window.App || {};
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
 
+  function formatDistance(km) {
+    if (typeof km !== 'number' || isNaN(km)) return '—';
+    if (km < 1) return `${Math.round(km * 1000)}m`;
+    return `${nf1.format(km)}km`;
+  }
+
   // ============================================================
-  // BUURT-TAB — nieuwe versie met 3 lagen
+  // BUURT-TAB
   // ============================================================
 
   function avgAge(s) {
@@ -130,7 +136,7 @@ window.App = window.App || {};
       format: v => nf1.format(v),
     },
   ];
-  
+
   function computeMetric(metric, stats, nl) {
     const value = metric.getValue(stats);
     if (value === null || value === undefined || isNaN(value)) return null;
@@ -155,7 +161,7 @@ window.App = window.App || {};
     };
   }
 
- function renderMetricCard(metric, computed, onTap) {
+  function renderMetricCard(metric, computed, onTap) {
     const card = el('button', 'metric-card');
     card.type = 'button';
 
@@ -328,7 +334,7 @@ window.App = window.App || {};
     content.appendChild(sub);
 
     const container = el('div', 'container buurt-wrap');
-    
+
     if (stats === null) {
       container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
       content.appendChild(container); return;
@@ -372,7 +378,309 @@ window.App = window.App || {};
   }
 
   // ============================================================
-  // Overige tabs
+  // THUIS-TAB — dashboard met preview blokken
+  // ============================================================
+
+  function distanceKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const toRad = x => x * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLng = toRad(lng2 - lng1);
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2) ** 2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  const _thuisCache = {
+    addrKey: null,
+    stats: undefined,
+    nl: undefined,
+    news: undefined,
+    publicaties: undefined,
+    voorzieningen: undefined,
+  };
+
+  function resetThuisCache(addrKey) {
+    _thuisCache.addrKey = addrKey;
+    _thuisCache.stats = undefined;
+    _thuisCache.nl = undefined;
+    _thuisCache.news = undefined;
+    _thuisCache.publicaties = undefined;
+    _thuisCache.voorzieningen = undefined;
+  }
+
+  function buildStatsPreview(stats, nl) {
+    if (!stats || !nl) return [];
+    const scored = [];
+    for (const metric of METRICS) {
+      if (metric.noCompare) continue;
+      const c = computeMetric(metric, stats, nl);
+      if (!c || c.diffPct === null) continue;
+      scored.push({ metric, computed: c, score: Math.abs(c.diffPct) });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, 3);
+  }
+
+  function renderStatsPreviewBlock(stats, nl, onTapBlock) {
+    const block = el('section', 'thuis-block thuis-block-clickable');
+    block.innerHTML = `
+      <div class="thuis-block-header">
+        <div class="thuis-block-title">In het kort</div>
+        <span class="thuis-block-arrow">${I.arrow_right}</span>
+      </div>
+    `;
+
+    if (stats === undefined || nl === undefined) {
+      const list = el('div', 'thuis-stats-preview');
+      for (let i = 0; i < 3; i++) list.appendChild(el('div', 'thuis-stat-row skeleton-row'));
+      block.appendChild(list);
+    } else if (!stats || !nl) {
+      block.appendChild(el('div', 'thuis-block-empty', 'Vergelijking tijdelijk niet beschikbaar.'));
+    } else {
+      const top = buildStatsPreview(stats, nl);
+      if (top.length === 0) {
+        block.appendChild(el('div', 'thuis-block-empty', 'Geen vergelijking mogelijk.'));
+      } else {
+        const list = el('div', 'thuis-stats-preview');
+        for (const { metric, computed } of top) {
+          const up = computed.diffPct > 0;
+          const sign = up ? '+' : '';
+          const cls = up ? 'diff-up' : 'diff-down';
+          const arrow = up ? '↑' : '↓';
+          const iconHtml = metric.icon && I[metric.icon] ? `<span class="thuis-stat-icon">${I[metric.icon]}</span>` : '';
+          const row = el('div', 'thuis-stat-row');
+          row.innerHTML = `
+            ${iconHtml}
+            <div class="thuis-stat-text">
+              <div class="thuis-stat-label">${metric.label}</div>
+              <div class="thuis-stat-value">${computed.formatted}</div>
+            </div>
+            <div class="thuis-stat-diff ${cls}">${arrow} ${sign}${nf1.format(computed.diffPct)}%</div>
+          `;
+          list.appendChild(row);
+        }
+        block.appendChild(list);
+      }
+    }
+
+    block.addEventListener('click', () => onTapBlock());
+    return block;
+  }
+
+  function buildVoorzieningenPreview(points, coords) {
+    if (!points || !coords) return [];
+    const CATEGORIES = window.App.map?.CATEGORIES || window.App.overpass?.CATEGORIES || {};
+    const perCat = {};
+    for (const key of Object.keys(CATEGORIES)) perCat[key] = null;
+
+    for (const p of points) {
+      if (!CATEGORIES[p.category]) continue;
+      const d = distanceKm(coords.lat, coords.lng, p.lat, p.lng);
+      if (!perCat[p.category] || d < perCat[p.category].distance) {
+        perCat[p.category] = { point: p, distance: d };
+      }
+    }
+
+    const out = [];
+    for (const [key, cat] of Object.entries(CATEGORIES)) {
+      if (!perCat[key]) continue;
+      out.push({ key, label: cat.label, color: cat.color, distance: perCat[key].distance, name: perCat[key].point.name });
+    }
+    out.sort((a, b) => a.distance - b.distance);
+    return out;
+  }
+
+  function renderDichtbijBlock(voorzieningen, onTapBlock) {
+    const block = el('section', 'thuis-block thuis-block-clickable');
+    block.innerHTML = `
+      <div class="thuis-block-header">
+        <div class="thuis-block-title">Dichtbij</div>
+        <span class="thuis-block-arrow">${I.arrow_right}</span>
+      </div>
+    `;
+
+    if (voorzieningen === undefined) {
+      const strip = el('div', 'thuis-voorz-strip');
+      for (let i = 0; i < 4; i++) strip.appendChild(el('div', 'thuis-voorz-chip skeleton-chip'));
+      block.appendChild(strip);
+    } else if (!voorzieningen || voorzieningen.length === 0) {
+      block.appendChild(el('div', 'thuis-block-empty', 'Geen voorzieningen gevonden.'));
+    } else {
+      const strip = el('div', 'thuis-voorz-strip');
+      for (const v of voorzieningen) {
+        const chip = el('div', 'thuis-voorz-chip');
+        chip.innerHTML = `
+          <span class="thuis-voorz-dot" style="background:${v.color}"></span>
+          <span class="thuis-voorz-label">${escapeHtml(v.label)}</span>
+          <span class="thuis-voorz-dist">${formatDistance(v.distance)}</span>
+        `;
+        strip.appendChild(chip);
+      }
+      block.appendChild(strip);
+    }
+
+    block.addEventListener('click', () => onTapBlock());
+    return block;
+  }
+
+  function renderNieuwsBlock(news, onTapBlock) {
+    const block = el('section', 'thuis-block thuis-block-clickable');
+    block.innerHTML = `
+      <div class="thuis-block-header">
+        <div class="thuis-block-title">Laatste nieuws</div>
+        <span class="thuis-block-arrow">${I.arrow_right}</span>
+      </div>
+    `;
+
+    if (news === undefined) {
+      const skel = el('div', 'thuis-news-preview');
+      skel.innerHTML = `
+        <div class="thuis-news-image skeleton-img"></div>
+        <div class="thuis-news-body">
+          <div class="skeleton-line skeleton-line-short"></div>
+          <div class="skeleton-line skeleton-line-long"></div>
+        </div>
+      `;
+      block.appendChild(skel);
+    } else if (!news || news.length === 0) {
+      block.appendChild(el('div', 'thuis-block-empty', 'Geen recent nieuws.'));
+    } else {
+      const item = news[0];
+      const preview = el('div', 'thuis-news-preview');
+      const img = item.image ? `<div class="thuis-news-image" style="background-image:url('${item.image}')"></div>` : '<div class="thuis-news-image thuis-news-image-empty"></div>';
+      preview.innerHTML = `
+        ${img}
+        <div class="thuis-news-body">
+          <div class="thuis-news-meta">${escapeHtml(item.source)} · ${window.App.news.formatDate(item.pubDate)}</div>
+          <div class="thuis-news-title">${escapeHtml(item.title)}</div>
+        </div>
+      `;
+      block.appendChild(preview);
+    }
+
+    block.addEventListener('click', () => onTapBlock());
+    return block;
+  }
+
+  function renderPublicatiesBlock(publicaties, onTapBlock) {
+    const block = el('section', 'thuis-block thuis-block-clickable');
+    block.innerHTML = `
+      <div class="thuis-block-header">
+        <div class="thuis-block-title">Publicaties</div>
+        <span class="thuis-block-arrow">${I.arrow_right}</span>
+      </div>
+    `;
+
+    if (publicaties === undefined) {
+      const skel = el('div', 'thuis-pub-skeleton');
+      skel.innerHTML = `
+        <div class="skeleton-line skeleton-line-short"></div>
+        <div class="thuis-pub-row skeleton-row"></div>
+        <div class="thuis-pub-row skeleton-row"></div>
+      `;
+      block.appendChild(skel);
+    } else if (!publicaties || !publicaties.records || publicaties.records.length === 0) {
+      block.appendChild(el('div', 'thuis-block-empty', 'Geen publicaties binnen 500 m.'));
+    } else {
+      const { records, total } = publicaties;
+      const summary = el('div', 'thuis-pub-summary');
+      summary.textContent = `${total} ${total === 1 ? 'publicatie' : 'publicaties'} binnen 500 m`;
+      block.appendChild(summary);
+
+      const list = el('div', 'thuis-pub-list');
+      for (const r of records.slice(0, 2)) {
+        const row = el('div', 'thuis-pub-row');
+        row.innerHTML = `
+          <span class="thuis-pub-type">${escapeHtml(r.typeLabel)}</span>
+          <span class="thuis-pub-title">${escapeHtml(r.title)}</span>
+        `;
+        list.appendChild(row);
+      }
+      block.appendChild(list);
+    }
+
+    block.addEventListener('click', () => onTapBlock());
+    return block;
+  }
+
+  function loadThuisData(addr, stats, nl) {
+    const addrKey = addr.bag?.nummeraanduidingId || `${addr.coords?.lat},${addr.coords?.lng}`;
+    if (_thuisCache.addrKey !== addrKey) resetThuisCache(addrKey);
+
+    _thuisCache.stats = stats;
+    _thuisCache.nl = nl;
+
+    const coords = addr.coords;
+    const tasks = [];
+
+    if (_thuisCache.news === undefined) {
+      tasks.push((async () => {
+        try {
+          const province = addr.province?.name;
+          if (!province) { _thuisCache.news = null; return; }
+          const { items } = await window.App.news.fetchForRegion(
+            province, addr.municipality?.name, addr.neighborhood?.name, addr.district?.name
+          );
+          _thuisCache.news = items || [];
+        } catch (e) { console.error('[thuis news]', e); _thuisCache.news = null; }
+      })());
+    }
+
+    if (_thuisCache.publicaties === undefined && coords) {
+      tasks.push((async () => {
+        try {
+          const { records, total } = await window.App.meldingen.fetchPage(coords.lat, coords.lng, 0.5, 1);
+          _thuisCache.publicaties = { records, total };
+        } catch (e) { console.error('[thuis pub]', e); _thuisCache.publicaties = null; }
+      })());
+    }
+
+    if (_thuisCache.voorzieningen === undefined && coords) {
+      tasks.push((async () => {
+        try {
+          const points = await window.App.overpass.fetchNearby(coords.lat, coords.lng, 1000);
+          _thuisCache.voorzieningen = buildVoorzieningenPreview(points, coords);
+        } catch (e) { console.error('[thuis voorz]', e); _thuisCache.voorzieningen = null; }
+      })());
+    }
+
+    return tasks;
+  }
+
+  function renderThuisTab(content, addr, stats, nl, handlers) {
+    const wrap = el('div', 'container thuis-wrap');
+    wrap.innerHTML = `
+      <div class="thuis-header">
+        <div class="thuis-label">Welkom thuis</div>
+        <div class="thuis-title">${escapeHtml(addr.street)} ${escapeHtml(addr.houseNumber || '')}</div>
+        <div class="thuis-sub">${escapeHtml(addr.neighborhood?.name || addr.city)}${addr.municipality?.name ? ', ' + escapeHtml(addr.municipality.name) : ''}</div>
+      </div>
+      <div id="thuis-blocks"></div>
+    `;
+    content.appendChild(wrap);
+
+    const blocksEl = wrap.querySelector('#thuis-blocks');
+
+    function rerender() {
+      blocksEl.innerHTML = '';
+      blocksEl.appendChild(renderStatsPreviewBlock(_thuisCache.stats, _thuisCache.nl, () => handlers.onTab('buurt')));
+      blocksEl.appendChild(renderDichtbijBlock(_thuisCache.voorzieningen, () => handlers.onTab('kaart')));
+      blocksEl.appendChild(renderNieuwsBlock(_thuisCache.news, () => handlers.onTab('nieuws')));
+      blocksEl.appendChild(renderPublicatiesBlock(_thuisCache.publicaties, () => handlers.onTab('meldingen')));
+    }
+
+    rerender();
+
+    const tasks = loadThuisData(addr, stats, nl);
+    for (const task of tasks) {
+      task.then(() => {
+        if (document.getElementById('thuis-blocks') === blocksEl) rerender();
+      });
+    }
+  }
+
+  // ============================================================
+  // Chrome, onboarding, settings, overige tabs
   // ============================================================
 
   function renderChrome(activeTab, onTabChange, onSettings) {
@@ -719,46 +1027,6 @@ window.App = window.App || {};
     }
   }
 
-  function renderThuisTab(content, addr, handlers) {
-    const wrap = el('div', 'container thuis-wrap');
-    wrap.innerHTML = `
-      <div class="thuis-header">
-        <div class="thuis-label">Welkom thuis</div>
-        <div class="thuis-title">Jouw buurt in een overzicht</div>
-        <div class="thuis-sub">${addr.neighborhood?.name || addr.city}, ${addr.municipality?.name || ''}</div>
-      </div>
-
-      <section class="thuis-block">
-        <div class="thuis-block-title">In het kort</div>
-        <div class="thuis-block-body">Binnenkort: visuele statistieken vergeleken met de rest van Nederland.</div>
-        <button class="thuis-link" data-go="buurt">Lees meer over jouw buurt →</button>
-      </section>
-
-      <section class="thuis-block">
-        <div class="thuis-block-title">Laatste nieuws</div>
-        <div class="thuis-block-body">Binnenkort: het meest recente artikel uit jouw gemeente.</div>
-        <button class="thuis-link" data-go="nieuws">Meer nieuws over jouw buurt →</button>
-      </section>
-
-      <section class="thuis-block">
-        <div class="thuis-block-title">Publicaties</div>
-        <div class="thuis-block-body">Binnenkort: officiële publicaties uit jouw omgeving.</div>
-        <button class="thuis-link" data-go="meldingen">Bekijk alle publicaties →</button>
-      </section>
-
-      <section class="thuis-block">
-        <div class="thuis-block-title">Dichtbij</div>
-        <div class="thuis-block-body">Binnenkort: dichtstbijzijnde supermarkt, buitenplek en eetgelegenheid.</div>
-        <button class="thuis-link" data-go="kaart">Open de kaart →</button>
-      </section>
-    `;
-    content.appendChild(wrap);
-
-    wrap.querySelectorAll('[data-go]').forEach(btn => {
-      btn.addEventListener('click', () => handlers.onTab(btn.dataset.go));
-    });
-  }
-
   window.App.render = {
     onboarding(onSubmit) {
       const root = document.getElementById('app');
@@ -790,7 +1058,7 @@ window.App = window.App || {};
     },
     shell(activeTab, addr, stats, nl, handlers) {
       const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
-      if (activeTab === 'thuis') renderThuisTab(content, addr, handlers);
+      if (activeTab === 'thuis') renderThuisTab(content, addr, stats, nl, handlers);
       else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats, nl);
       else if (activeTab === 'kaart') renderKaartTab(content, addr);
       else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
