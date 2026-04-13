@@ -338,9 +338,9 @@ window.App = window.App || {};
   }
 
   // Module-level state voor meldingen (overleeft tab-switches)
-  const _meldingenState = {
+const _meldingenState = {
     addrKey: null,
-    radiusKm: 1,
+    radiusM: 200,
     page: 1,
     total: 0,
     records: [],
@@ -348,13 +348,19 @@ window.App = window.App || {};
     error: null
   };
 
+  function formatRadius(m) {
+    if (m < 1000) return `${m} m`;
+    const km = m / 1000;
+    return Number.isInteger(km) ? `${km} km` : `${km.toFixed(1)} km`;
+  }
+
   async function renderMeldingenTab(content, addr) {
     const coords = addr.coords;
     const addrKey = addr.bag?.nummeraanduidingId || `${coords?.lat},${coords?.lng}`;
 
     if (_meldingenState.addrKey !== addrKey) {
       _meldingenState.addrKey = addrKey;
-      _meldingenState.radiusKm = 1;
+      _meldingenState.radiusM = 200;
       _meldingenState.page = 1;
       _meldingenState.total = 0;
       _meldingenState.records = [];
@@ -368,15 +374,15 @@ window.App = window.App || {};
         <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties binnen een straal rondom jouw adres</div>
       </div>
 
-      <div class="radius-card">
+<div class="radius-card">
         <div class="radius-map" id="meldingen-map"></div>
         <div class="radius-controls">
           <div class="radius-label">
             <span>Straal</span>
-            <strong id="meldingen-radius-value">${_meldingenState.radiusKm} km</strong>
+            <strong id="meldingen-radius-value">${formatRadius(_meldingenState.radiusM)}</strong>
           </div>
-          <input type="range" id="meldingen-radius" min="1" max="5" step="1" value="${_meldingenState.radiusKm}">
-          <div class="radius-ticks"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span></div>
+          <input type="range" id="meldingen-radius" min="100" max="5000" step="100" value="${_meldingenState.radiusM}">
+          <div class="radius-ticks"><span>100 m</span><span>1 km</span><span>2,5 km</span><span>5 km</span></div>
         </div>
       </div>
 
@@ -419,7 +425,7 @@ window.App = window.App || {};
         }).addTo(mapInstance);
 
         radiusCircle = L.circle([coords.lat, coords.lng], {
-          radius: _meldingenState.radiusKm * 1000,
+          radius: _meldingenState.radiusM,
           color: '#1a2e28', weight: 2, fillColor: '#1a2e28', fillOpacity: 0.12
         }).addTo(mapInstance);
 
@@ -432,9 +438,9 @@ window.App = window.App || {};
       mapInstance.fitBounds(radiusCircle.getBounds(), { padding: [20, 20] });
     }
 
-    function updateMapRadius(km) {
+   function updateMapRadius(m) {
       if (!radiusCircle) return;
-      radiusCircle.setRadius(km * 1000);
+      radiusCircle.setRadius(m);
       fitMap();
     }
 
@@ -452,12 +458,12 @@ window.App = window.App || {};
       }
       if (_meldingenState.records.length === 0 && _meldingenState.loading) {
         listEl.innerHTML = '<div class="state-msg">Laden…</div>';
-        subEl.textContent = `Binnen ${_meldingenState.radiusKm} km`;
+        subEl.textContent = `Binnen ${formatRadius(_meldingenState.radiusM)}`;
         moreBtn.style.display = 'none';
         return;
       }
       if (_meldingenState.records.length === 0) {
-        listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen binnen ${_meldingenState.radiusKm} km.</div>`;
+        listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen binnen ${formatRadius(_meldingenState.radiusM)}.</div>`;
         subEl.textContent = '';
         moreBtn.style.display = 'none';
         return;
@@ -474,7 +480,7 @@ window.App = window.App || {};
         </a>
       `).join('');
 
-      subEl.textContent = `${_meldingenState.records.length} van ${_meldingenState.total} binnen ${_meldingenState.radiusKm} km`;
+      subEl.textContent = `${_meldingenState.records.length} van ${_meldingenState.total} binnen ${formatRadius(_meldingenState.radiusM)}`;
       const hasMore = _meldingenState.records.length < _meldingenState.total;
       moreBtn.style.display = hasMore ? 'block' : 'none';
       moreBtn.disabled = _meldingenState.loading;
@@ -486,8 +492,8 @@ window.App = window.App || {};
       _meldingenState.loading = true;
       renderList();
       try {
-        const { records, total } = await window.App.meldingen.fetchPage(
-          coords.lat, coords.lng, _meldingenState.radiusKm, _meldingenState.page
+      const { records, total } = await window.App.meldingen.fetchPage(
+          coords.lat, coords.lng, _meldingenState.radiusM / 1000, _meldingenState.page
         );
         _meldingenState.total = total;
         _meldingenState.records = _meldingenState.records.concat(records);
@@ -512,12 +518,12 @@ window.App = window.App || {};
 
     let sliderTimer = null;
     slider.addEventListener('input', e => {
-      const km = parseInt(e.target.value, 10);
-      _meldingenState.radiusKm = km;
-      radiusValEl.textContent = `${km} km`;
-      updateMapRadius(km);
+      const m = parseInt(e.target.value, 10);
+      _meldingenState.radiusM = m;
+      radiusValEl.textContent = formatRadius(m);
+      updateMapRadius(m);
       if (sliderTimer) clearTimeout(sliderTimer);
-      sliderTimer = setTimeout(() => resetAndLoad(), 300);
+      sliderTimer = setTimeout(() => resetAndLoad(), 400);
     });
 
     moreBtn.addEventListener('click', loadNext);
