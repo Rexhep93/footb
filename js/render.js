@@ -26,14 +26,16 @@ window.App = window.App || {};
   // ============================================================
 
   function avgAge(s) {
-    const total = Number(s.AantalInwoners_5);
-    if (!total || total <= 0) return null;
-    const young = (Number(s.k_0Tot15Jaar_8) || 0) * total / 100 * 7.5;
-    const student = (Number(s.k_15Tot25Jaar_9) || 0) * total / 100 * 20;
-    const adult = (Number(s.k_25Tot45Jaar_10) || 0) * total / 100 * 35;
-    const midAge = (Number(s.k_45Tot65Jaar_11) || 0) * total / 100 * 55;
-    const senior = (Number(s.k_65JaarOfOuder_12) || 0) * total / 100 * 75;
-    return (young + student + adult + midAge + senior) / total;
+    const p0 = Number(s.k_0Tot15Jaar_8);
+    const p1 = Number(s.k_15Tot25Jaar_9);
+    const p2 = Number(s.k_25Tot45Jaar_10);
+    const p3 = Number(s.k_45Tot65Jaar_11);
+    const p4 = Number(s.k_65JaarOfOuder_12);
+    if ([p0, p1, p2, p3, p4].some(v => isNaN(v))) return null;
+    const totalPct = p0 + p1 + p2 + p3 + p4;
+    if (totalPct <= 0) return null;
+    // Gewogen gemiddelde van bin-middelpunten, genormaliseerd op som (~100)
+    return (p0 * 7.5 + p1 * 20 + p2 * 35 + p3 * 55 + p4 * 75) / totalPct;
   }
 
   function buildCharacterLabels(s) {
@@ -85,15 +87,27 @@ window.App = window.App || {};
     {
       key: 'inkomen',
       label: 'Inkomen per persoon',
-      getValue: s => Number(s.GemiddeldInkomenPerInwoner_78),
-      getNl: nl => Number(nl?.GemiddeldInkomenPerInwoner_78),
+      getValue: s => {
+        const v = Number(s.GemiddeldInkomenPerInwoner_78);
+        return (isNaN(v) || v <= 0) ? null : v;
+      },
+      getNl: nl => {
+        const v = Number(nl?.GemiddeldInkomenPerInwoner_78);
+        return (isNaN(v) || v <= 0) ? null : v;
+      },
       format: v => `€${nf.format(Math.round(v * 1000))}`,
     },
     {
       key: 'woz',
       label: 'WOZ-waarde',
-      getValue: s => Number(s.GemiddeldeWOZWaardeVanWoningen_39),
-      getNl: nl => Number(nl?.GemiddeldeWOZWaardeVanWoningen_39),
+      getValue: s => {
+        const v = Number(s.GemiddeldeWOZWaardeVanWoningen_39);
+        return (isNaN(v) || v <= 0) ? null : v;
+      },
+      getNl: nl => {
+        const v = Number(nl?.GemiddeldeWOZWaardeVanWoningen_39);
+        return (isNaN(v) || v <= 0) ? null : v;
+      },
       format: v => `€${nf.format(Math.round(v * 1000))}`,
     },
     {
