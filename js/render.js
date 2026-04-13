@@ -7,128 +7,7 @@ window.App = window.App || {};
   function n(v) { return typeof v === 'number' ? nf.format(Math.round(v)) : '—'; }
   function n1(v) { return typeof v === 'number' ? nf1.format(v) : '—'; }
   function pct(v) { return typeof v === 'number' ? `${nf1.format(v)}%` : '—'; }
-  function eur(v) { return typeof v === 'number' ? `€${nf.format(Math.round(v * 1000))}` : '—'; }
-  function km(v) {
-    if (typeof v !== 'number') return '—';
-    return v < 1 ? `${Math.round(v * 1000)} m` : `${n1(v)} km`;
-  }
   function has(v) { return v !== null && v !== undefined && v !== ''; }
-  function b(t) { return `<strong>${t}</strong>`; }
-
-  function themeBevolking(s) {
-    const p = [];
-    if (has(s.AantalInwoners_5)) {
-      let line = `In jouw buurt wonen ${b(n(s.AantalInwoners_5) + ' mensen')}.`;
-      if (has(s.Mannen_6) && has(s.Vrouwen_7)) {
-        line += ` Daarvan zijn er ${b(n(s.Mannen_6))} man en ${b(n(s.Vrouwen_7))} vrouw.`;
-      }
-      p.push(line);
-    }
-    if (has(s.k_65JaarOfOuder_12) && has(s.AantalInwoners_5)) {
-      const senior = (s.k_65JaarOfOuder_12 / s.AantalInwoners_5) * 100;
-      const young = has(s.k_0Tot15Jaar_8) ? (s.k_0Tot15Jaar_8 / s.AantalInwoners_5) * 100 : null;
-      let line = `${b(pct(senior))} van de buurt is 65-plusser`;
-      if (young !== null) line += `, en ${b(pct(young))} is jonger dan 15 jaar`;
-      p.push(line + '.');
-    }
-    if (has(s.HuishoudensTotaal_29) && has(s.GemiddeldeHuishoudensgrootte_33)) {
-      p.push(`Samen vormen ze ${b(n(s.HuishoudensTotaal_29) + ' huishoudens')}, gemiddeld ${b(n1(s.GemiddeldeHuishoudensgrootte_33) + ' personen')} per huishouden.`);
-    }
-    if (has(s.Nederland_17) && has(s.AantalInwoners_5)) {
-      const nl = (s.Nederland_17 / s.AantalInwoners_5) * 100;
-      p.push(`${b(pct(nl))} heeft een Nederlandse achtergrond.`);
-    }
-    return { title: 'Bevolking', subtitle: 'De mensen om je heen', icon: I.people, lines: p };
-  }
-
-  function themeWonen(s) {
-    const p = [];
-    if (has(s.Woningvoorraad_35)) {
-      let line = `Jouw buurt telt ${b(n(s.Woningvoorraad_35) + ' woningen')}.`;
-      if (has(s.Koopwoningen_47) && has(s.HuurwoningenTotaal_48)) {
-        line += ` Daarvan is ${b(pct(s.Koopwoningen_47))} een koopwoning en ${b(pct(s.HuurwoningenTotaal_48))} een huurwoning.`;
-      }
-      p.push(line);
-    }
-    if (has(s.GemiddeldeWOZWaardeVanWoningen_39)) {
-      p.push(`De gemiddelde WOZ-waarde ligt op ${b(eur(s.GemiddeldeWOZWaardeVanWoningen_39))}.`);
-    }
-    if (has(s.PercentageEengezinswoning_40)) {
-      p.push(`De meeste woningen zijn eengezinswoningen: ${b(pct(s.PercentageEengezinswoning_40))} van het totaal.`);
-    }
-    if (has(s.BouwjaarMeerDanTienJaarGeleden_51) && s.BouwjaarMeerDanTienJaarGeleden_51 > 90) {
-      p.push(`Vrijwel alle woningen staan er al ${b('langer dan tien jaar')}.`);
-    } else if (has(s.BouwjaarAfgelopenTienJaar_52)) {
-      p.push(`${b(pct(s.BouwjaarAfgelopenTienJaar_52))} van de woningen is in de afgelopen tien jaar gebouwd.`);
-    }
-    return { title: 'Wonen', subtitle: 'De huizen in jouw straat en omgeving', icon: I.home, lines: p };
-  }
-
-  function themeInkomen(s) {
-    const p = [];
-    if (has(s.GemiddeldInkomenPerInwoner_78)) {
-      p.push(`Het gemiddelde inkomen per inwoner is ${b(eur(s.GemiddeldInkomenPerInwoner_78))} per jaar.`);
-    }
-    if (has(s.k_40PersonenMetLaagsteInkomen_79) && has(s.k_20PersonenMetHoogsteInkomen_80)) {
-      p.push(`${b(pct(s.k_40PersonenMetLaagsteInkomen_79))} van de buurt behoort tot de 40% laagste inkomens van Nederland, en ${b(pct(s.k_20PersonenMetHoogsteInkomen_80))} tot de 20% hoogste.`);
-    }
-    if (has(s.PersonenInArmoede_81)) {
-      p.push(`${b(pct(s.PersonenInArmoede_81))} van de inwoners leeft onder de armoedegrens.`);
-    }
-    if (has(s.Nettoarbeidsparticipatie_71)) {
-      p.push(`${b(pct(s.Nettoarbeidsparticipatie_71))} van de werkzame bevolking heeft betaald werk.`);
-    }
-    return { title: 'Inkomen', subtitle: 'Wat mensen verdienen en doen', icon: I.wallet, lines: p };
-  }
-
-  function themeVoorzieningen(s) {
-    const p = [];
-    const afstanden = [];
-    if (has(s.AfstandTotHuisartsenpraktijk_110)) afstanden.push(`een huisarts op ${b(km(s.AfstandTotHuisartsenpraktijk_110))}`);
-    if (has(s.AfstandTotGroteSupermarkt_111)) afstanden.push(`een supermarkt op ${b(km(s.AfstandTotGroteSupermarkt_111))}`);
-    if (has(s.AfstandTotSchool_113)) afstanden.push(`een basisschool op ${b(km(s.AfstandTotSchool_113))}`);
-    if (has(s.AfstandTotKinderdagverblijf_112)) afstanden.push(`een kinderdagverblijf op ${b(km(s.AfstandTotKinderdagverblijf_112))}`);
-    if (afstanden.length) p.push(`Vanuit jouw buurt vind je ${afstanden.join(', ')}.`);
-    if (has(s.ScholenBinnen3Km_114)) {
-      p.push(`Binnen drie kilometer liggen ongeveer ${b(n1(s.ScholenBinnen3Km_114) + ' scholen')}.`);
-    }
-    return { title: 'Voorzieningen', subtitle: 'Wat je dichtbij kunt vinden', icon: I.pin, lines: p };
-  }
-
-  function themeMobiliteit(s) {
-    const p = [];
-    if (has(s.PersonenautoSTotaal_104)) {
-      let line = `Er staan ${b(n(s.PersonenautoSTotaal_104) + ' personenauto\'s')} in de buurt`;
-      if (has(s.PersonenautoSPerHuishouden_107)) line += `, gemiddeld ${b(n1(s.PersonenautoSPerHuishouden_107))} per huishouden`;
-      p.push(line + '.');
-    }
-    if (has(s.Motorfietsen_109)) {
-      p.push(`Daarnaast zijn er ${b(n(s.Motorfietsen_109) + ' motorfietsen')} geregistreerd.`);
-    }
-    if (has(s.AantalPubliekeLaadpalen_61)) {
-      p.push(`Voor elektrisch rijden zijn er ${b(n(s.AantalPubliekeLaadpalen_61) + ' publieke laadpalen')}.`);
-    }
-    return { title: 'Mobiliteit', subtitle: 'Hoe de buurt zich verplaatst', icon: I.car, lines: p };
-  }
-
-  function themeEnergie(s) {
-    const p = [];
-    if (has(s.GemiddeldAardgasverbruik_55)) {
-      p.push(`Een gemiddelde woning verbruikt ${b(n(s.GemiddeldAardgasverbruik_55) + ' m³')} aardgas per jaar.`);
-    }
-    if (has(s.GemiddeldeElektriciteitslevering_53)) {
-      p.push(`Het gemiddelde elektriciteitsverbruik ligt op ${b(n(s.GemiddeldeElektriciteitslevering_53) + ' kWh')} per woning.`);
-    }
-    if (has(s.WoningenMetZonnestroom_59)) {
-      p.push(`${b(pct(s.WoningenMetZonnestroom_59))} van de woningen heeft zonnepanelen op het dak.`);
-    }
-    if (has(s.AardgasvrijeWoningen_57)) {
-      p.push(`${b(pct(s.AardgasvrijeWoningen_57))} van de woningen is al volledig aardgasvrij.`);
-    }
-    return { title: 'Energie', subtitle: 'Hoe de buurt woont en verwarmt', icon: I.leaf, lines: p };
-  }
-
-  const THEMES = [themeBevolking, themeWonen, themeInkomen, themeVoorzieningen, themeMobiliteit, themeEnergie];
 
   function el(tag, cls, html) {
     const e = document.createElement(tag);
@@ -136,6 +15,318 @@ window.App = window.App || {};
     if (html !== undefined) e.innerHTML = html;
     return e;
   }
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ============================================================
+  // BUURT-TAB — nieuwe versie met 3 lagen
+  // ============================================================
+
+  function avgAge(s) {
+    const total = Number(s.AantalInwoners_5);
+    if (!total || total <= 0) return null;
+    const young = (Number(s.k_0Tot15Jaar_8) || 0) * total / 100 * 7.5;
+    const student = (Number(s.k_15Tot25Jaar_9) || 0) * total / 100 * 20;
+    const adult = (Number(s.k_25Tot45Jaar_10) || 0) * total / 100 * 35;
+    const midAge = (Number(s.k_45Tot65Jaar_11) || 0) * total / 100 * 55;
+    const senior = (Number(s.k_65JaarOfOuder_12) || 0) * total / 100 * 75;
+    return (young + student + adult + midAge + senior) / total;
+  }
+
+  function buildCharacterLabels(s) {
+    const labels = [];
+    const koop = Number(s.Koopwoningen_47);
+    const huishoudensgrootte = Number(s.GemiddeldeHuishoudensgrootte_33);
+    const senior = Number(s.k_65JaarOfOuder_12);
+    const young = Number(s.k_0Tot15Jaar_8);
+    const inkomen = Number(s.GemiddeldInkomenPerInwoner_78);
+    const eengezins = Number(s.PercentageEengezinswoning_40);
+    const zonnepanelen = Number(s.WoningenMetZonnestroom_59);
+
+    if (huishoudensgrootte > 2.3 || young > 18) labels.push('Gezinsbuurt');
+    else if (huishoudensgrootte > 0 && huishoudensgrootte < 1.9) labels.push('Veel alleenstaanden');
+
+    if (koop > 70) labels.push('Eigenaren');
+    else if (koop > 0 && koop < 40) labels.push('Huurbuurt');
+
+    if (senior > 25) labels.push('Oudere buurt');
+    else if (senior > 0 && senior < 12 && young > 18) labels.push('Jonge buurt');
+
+    if (inkomen > 32) labels.push('Hoger inkomen');
+    else if (inkomen > 0 && inkomen < 22) labels.push('Lager inkomen');
+
+    if (eengezins > 80) labels.push('Eengezinswoningen');
+    else if (eengezins > 0 && eengezins < 30) labels.push('Appartementen');
+
+    if (zonnepanelen > 35) labels.push('Duurzaam');
+
+    return labels.slice(0, 4);
+  }
+
+  const METRICS = [
+    {
+      key: 'inwoners',
+      label: 'Inwoners',
+      getValue: s => Number(s.AantalInwoners_5),
+      getNl: nl => null,
+      format: v => n(v),
+      noCompare: true,
+    },
+    {
+      key: 'leeftijd',
+      label: 'Gem. leeftijd',
+      getValue: s => avgAge(s),
+      getNl: nl => avgAge(nl),
+      format: v => `${nf1.format(v)} jaar`,
+    },
+    {
+      key: 'inkomen',
+      label: 'Inkomen per persoon',
+      getValue: s => Number(s.GemiddeldInkomenPerInwoner_78),
+      getNl: nl => Number(nl?.GemiddeldInkomenPerInwoner_78),
+      format: v => `€${nf.format(Math.round(v * 1000))}`,
+    },
+    {
+      key: 'woz',
+      label: 'WOZ-waarde',
+      getValue: s => Number(s.GemiddeldeWOZWaardeVanWoningen_39),
+      getNl: nl => Number(nl?.GemiddeldeWOZWaardeVanWoningen_39),
+      format: v => `€${nf.format(Math.round(v * 1000))}`,
+    },
+    {
+      key: 'koop',
+      label: 'Koopwoningen',
+      getValue: s => Number(s.Koopwoningen_47),
+      getNl: nl => Number(nl?.Koopwoningen_47),
+      format: v => `${nf1.format(v)}%`,
+    },
+    {
+      key: 'huishouden',
+      label: 'Personen per huishouden',
+      getValue: s => Number(s.GemiddeldeHuishoudensgrootte_33),
+      getNl: nl => Number(nl?.GemiddeldeHuishoudensgrootte_33),
+      format: v => nf1.format(v),
+    },
+    {
+      key: 'zon',
+      label: 'Zonnepanelen',
+      getValue: s => Number(s.WoningenMetZonnestroom_59),
+      getNl: nl => Number(nl?.WoningenMetZonnestroom_59),
+      format: v => `${nf1.format(v)}%`,
+    },
+    {
+      key: 'auto',
+      label: "Auto's per huishouden",
+      getValue: s => Number(s.PersonenautoSPerHuishouden_107),
+      getNl: nl => Number(nl?.PersonenautoSPerHuishouden_107),
+      format: v => nf1.format(v),
+    },
+  ];
+
+  function computeMetric(metric, stats, nl) {
+    const value = metric.getValue(stats);
+    if (value === null || value === undefined || isNaN(value)) return null;
+
+    const nlValue = nl ? metric.getNl(nl) : null;
+    let diffPct = null;
+    if (!metric.noCompare && nlValue !== null && !isNaN(nlValue) && nlValue !== 0) {
+      diffPct = ((value - nlValue) / nlValue) * 100;
+    }
+
+    let barBuurt = 0, barNl = 0;
+    if (!metric.noCompare && nlValue !== null && !isNaN(nlValue)) {
+      const max = Math.max(value, nlValue) * 1.3 || 1;
+      barBuurt = (value / max) * 100;
+      barNl = (nlValue / max) * 100;
+    }
+
+    return {
+      value, nlValue, diffPct, barBuurt, barNl,
+      formatted: metric.format(value),
+      nlFormatted: nlValue !== null && !isNaN(nlValue) ? metric.format(nlValue) : null
+    };
+  }
+
+  function renderMetricCard(metric, computed, onTap) {
+    const card = el('button', 'metric-card');
+    card.type = 'button';
+
+    let diffHtml = '';
+    if (computed.diffPct !== null) {
+      const up = computed.diffPct > 0;
+      const sign = up ? '+' : '';
+      const cls = up ? 'diff-up' : 'diff-down';
+      const arrow = up ? '↑' : '↓';
+      diffHtml = `<span class="metric-diff ${cls}">${arrow} ${sign}${nf1.format(computed.diffPct)}% t.o.v. NL</span>`;
+    } else if (metric.noCompare) {
+      diffHtml = '<span class="metric-diff metric-diff-none">in jouw buurt</span>';
+    } else {
+      diffHtml = '<span class="metric-diff metric-diff-none">NL-data niet beschikbaar</span>';
+    }
+
+    let barHtml = '';
+    if (!metric.noCompare && computed.nlValue !== null) {
+      barHtml = `
+        <div class="metric-bars">
+          <div class="metric-bar-row">
+            <span class="metric-bar-label">Buurt</span>
+            <div class="metric-bar-track"><div class="metric-bar-fill metric-bar-buurt" style="width:${computed.barBuurt}%"></div></div>
+          </div>
+          <div class="metric-bar-row">
+            <span class="metric-bar-label">NL</span>
+            <div class="metric-bar-track"><div class="metric-bar-fill metric-bar-nl" style="width:${computed.barNl}%"></div></div>
+          </div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      <div class="metric-label">${metric.label}</div>
+      <div class="metric-value">${computed.formatted}</div>
+      ${diffHtml}
+      ${barHtml}
+    `;
+
+    card.addEventListener('click', onTap);
+    return card;
+  }
+
+  function buildDetailContent(metric, stats, nl) {
+    const lines = [];
+    const computed = computeMetric(metric, stats, nl);
+    if (!computed) return '<p>Geen gegevens beschikbaar.</p>';
+
+    lines.push(`<p>In jouw buurt: <strong>${computed.formatted}</strong>.</p>`);
+    if (computed.nlFormatted) {
+      lines.push(`<p>Nederlands gemiddelde: <strong>${computed.nlFormatted}</strong>.</p>`);
+    }
+
+    if (metric.key === 'inwoners' && has(stats.Mannen_6) && has(stats.Vrouwen_7)) {
+      lines.push(`<p>Daarvan ${n(stats.Mannen_6)} man en ${n(stats.Vrouwen_7)} vrouw, verdeeld over ${n(stats.HuishoudensTotaal_29)} huishoudens.</p>`);
+    }
+    if (metric.key === 'leeftijd') {
+      const parts = [];
+      if (has(stats.k_0Tot15Jaar_8)) parts.push(`${pct(stats.k_0Tot15Jaar_8)} jonger dan 15`);
+      if (has(stats.k_65JaarOfOuder_12)) parts.push(`${pct(stats.k_65JaarOfOuder_12)} 65-plus`);
+      if (parts.length) lines.push(`<p>${parts.join(', ')}.</p>`);
+    }
+    if (metric.key === 'inkomen') {
+      if (has(stats.k_40PersonenMetLaagsteInkomen_79) && has(stats.k_20PersonenMetHoogsteInkomen_80)) {
+        lines.push(`<p>${pct(stats.k_40PersonenMetLaagsteInkomen_79)} behoort tot de 40% laagste inkomens van Nederland, ${pct(stats.k_20PersonenMetHoogsteInkomen_80)} tot de 20% hoogste.</p>`);
+      }
+      if (has(stats.PersonenInArmoede_81)) {
+        lines.push(`<p>${pct(stats.PersonenInArmoede_81)} van de inwoners leeft onder de armoedegrens.</p>`);
+      }
+    }
+    if (metric.key === 'woz' && has(stats.PercentageEengezinswoning_40)) {
+      lines.push(`<p>${pct(stats.PercentageEengezinswoning_40)} van de woningen is een eengezinswoning.</p>`);
+    }
+    if (metric.key === 'koop' && has(stats.HuurwoningenTotaal_48)) {
+      lines.push(`<p>Huurwoningen: ${pct(stats.HuurwoningenTotaal_48)} van het totaal.</p>`);
+    }
+    if (metric.key === 'zon' && has(stats.AardgasvrijeWoningen_57)) {
+      lines.push(`<p>${pct(stats.AardgasvrijeWoningen_57)} van de woningen is volledig aardgasvrij.</p>`);
+    }
+    if (metric.key === 'auto') {
+      if (has(stats.PersonenautoSTotaal_104)) lines.push(`<p>${n(stats.PersonenautoSTotaal_104)} personenauto's in de buurt.</p>`);
+      if (has(stats.AantalPubliekeLaadpalen_61)) lines.push(`<p>${n(stats.AantalPubliekeLaadpalen_61)} publieke laadpalen.</p>`);
+    }
+
+    return lines.join('');
+  }
+
+  function openDetailSheet(metric, stats, nl) {
+    const existing = document.getElementById('sheet-root');
+    if (existing) existing.remove();
+
+    const sheetRoot = el('div');
+    sheetRoot.id = 'sheet-root';
+    const backdrop = el('div', 'sheet-backdrop');
+    const sheet = el('div', 'sheet');
+
+    const body = buildDetailContent(metric, stats, nl);
+
+    sheet.innerHTML = `
+      <div class="sheet-handle"></div>
+      <h2 class="sheet-title">${metric.label}</h2>
+      <div class="sheet-body">${body}</div>
+    `;
+
+    sheetRoot.appendChild(backdrop);
+    sheetRoot.appendChild(sheet);
+    document.body.appendChild(sheetRoot);
+
+    requestAnimationFrame(() => {
+      backdrop.classList.add('open');
+      sheet.classList.add('open');
+    });
+
+    const close = () => {
+      backdrop.classList.remove('open');
+      sheet.classList.remove('open');
+      setTimeout(() => sheetRoot.remove(), 250);
+    };
+    backdrop.addEventListener('click', close);
+  }
+
+  function renderBuurtTab(content, addr, stats, nl) {
+    const sub = el('div', 'sub-header');
+    sub.innerHTML = `
+      <div class="sub-header-label">Jouw buurt</div>
+      <div class="sub-header-address">${addr.street} ${addr.houseNumber}, ${addr.neighborhood.name || addr.city}</div>
+      <div class="sub-header-meta">${addr.municipality.name}</div>`;
+    content.appendChild(sub);
+
+    const container = el('div', 'container buurt-wrap');
+
+    if (stats === null) {
+      container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
+      content.appendChild(container); return;
+    }
+    if (stats === false) {
+      container.appendChild(el('div', 'state-msg', 'Buurtgegevens zijn tijdelijk niet beschikbaar.'));
+      content.appendChild(container); return;
+    }
+
+    const labels = buildCharacterLabels(stats);
+    if (labels.length) {
+      const charCard = el('section', 'char-card');
+      charCard.innerHTML = `
+        <div class="char-title">Buurtprofiel</div>
+        <div class="char-labels">
+          ${labels.map(l => `<span class="char-label">${escapeHtml(l)}</span>`).join('')}
+        </div>
+      `;
+      container.appendChild(charCard);
+    }
+
+    const gridHeader = el('div', 'metric-section-title');
+    gridHeader.textContent = nl ? 'Vergeleken met Nederland' : 'Kerncijfers';
+    container.appendChild(gridHeader);
+
+    const grid = el('div', 'metric-grid');
+    for (const metric of METRICS) {
+      const computed = computeMetric(metric, stats, nl);
+      if (!computed) continue;
+      const card = renderMetricCard(metric, computed, () => openDetailSheet(metric, stats, nl));
+      grid.appendChild(card);
+    }
+    container.appendChild(grid);
+
+    if (!nl) {
+      const note = el('div', 'buurt-note', 'Landelijke vergelijking is tijdelijk niet beschikbaar.');
+      container.appendChild(note);
+    }
+
+    content.appendChild(container);
+  }
+
+  // ============================================================
+  // Overige tabs
+  // ============================================================
 
   function renderChrome(activeTab, onTabChange, onSettings) {
     const root = document.getElementById('app');
@@ -169,54 +360,6 @@ window.App = window.App || {};
     nav.appendChild(inner);
     root.appendChild(nav);
     return content;
-  }
-
-  function renderBuurtTab(content, addr, stats) {
-    const sub = el('div', 'sub-header');
-    sub.innerHTML = `
-      <div class="sub-header-label">Jouw buurt</div>
-      <div class="sub-header-address">${addr.street} ${addr.houseNumber}, ${addr.neighborhood.name || addr.city}</div>
-      <div class="sub-header-meta">${addr.municipality.name}</div>`;
-    content.appendChild(sub);
-    const container = el('div', 'container dashboard');
-    if (stats === null) {
-      container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
-      content.appendChild(container); return;
-    }
-    if (stats === false) {
-      container.appendChild(el('div', 'state-msg', 'Buurtgegevens zijn tijdelijk niet beschikbaar.'));
-      content.appendChild(container); return;
-    }
-    for (const themeFn of THEMES) {
-      const { title, subtitle, icon, lines } = themeFn(stats);
-      if (!lines.length) continue;
-      const card = el('section', 'card');
-      const headerHtml = `
-        <div class="card-header">
-          <div class="card-header-icon">${icon}</div>
-          <div class="card-header-text">
-            <div class="card-header-title">${title}</div>
-            <div class="card-header-subtitle">${subtitle}</div>
-          </div>
-          <div class="card-chevron">${I.chevron}</div>
-        </div>
-        <div class="card-body">${lines.map(l => `<p>${l}</p>`).join('')}</div>`;
-      card.innerHTML = headerHtml;
-      card.querySelector('.card-header').addEventListener('click', () => {
-        card.classList.toggle('collapsed');
-      });
-      container.appendChild(card);
-    }
-    content.appendChild(container);
-  }
-
-  function renderPlaceholder(content, icon, title, text) {
-    const wrap = el('div', 'placeholder');
-    wrap.innerHTML = `
-      <div class="placeholder-icon">${icon}</div>
-      <div class="placeholder-title">${title}</div>
-      <div class="placeholder-text">${text}</div>`;
-    content.appendChild(wrap);
   }
 
   function renderSettingsSheet(onClose, onChangeAddress) {
@@ -337,8 +480,7 @@ window.App = window.App || {};
     }
   }
 
-  // Module-level state voor meldingen (overleeft tab-switches)
-const _meldingenState = {
+  const _meldingenState = {
     addrKey: null,
     radiusM: 200,
     page: 1,
@@ -374,7 +516,7 @@ const _meldingenState = {
         <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties binnen een straal rondom jouw adres</div>
       </div>
 
-<div class="radius-card">
+      <div class="radius-card">
         <div class="radius-map" id="meldingen-map"></div>
         <div class="radius-controls">
           <div class="radius-label">
@@ -438,15 +580,10 @@ const _meldingenState = {
       mapInstance.fitBounds(radiusCircle.getBounds(), { padding: [20, 20] });
     }
 
-   function updateMapRadius(m) {
+    function updateMapRadius(m) {
       if (!radiusCircle) return;
       radiusCircle.setRadius(m);
       fitMap();
-    }
-
-    function escapeHtml(s) {
-      if (!s) return '';
-      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
     function renderList() {
@@ -492,7 +629,7 @@ const _meldingenState = {
       _meldingenState.loading = true;
       renderList();
       try {
-      const { records, total } = await window.App.meldingen.fetchPage(
+        const { records, total } = await window.App.meldingen.fetchPage(
           coords.lat, coords.lng, _meldingenState.radiusM / 1000, _meldingenState.page
         );
         _meldingenState.total = total;
@@ -604,10 +741,10 @@ const _meldingenState = {
       });
       wrap.querySelector('#pc').focus();
     },
-    shell(activeTab, addr, stats, handlers) {
+    shell(activeTab, addr, stats, nl, handlers) {
       const content = renderChrome(activeTab, handlers.onTab, handlers.onSettings);
       if (activeTab === 'thuis') renderThuisTab(content, addr, handlers);
-      else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
+      else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats, nl);
       else if (activeTab === 'kaart') renderKaartTab(content, addr);
       else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
       else if (activeTab === 'meldingen') renderMeldingenTab(content, addr);
