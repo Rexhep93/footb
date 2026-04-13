@@ -425,7 +425,7 @@ window.App = window.App || {};
     const block = el('section', 'thuis-block thuis-block-clickable');
     block.innerHTML = `
       <div class="thuis-block-header">
-        <div class="thuis-block-title">In het kort</div>
+        <div class="thuis-block-title">Jouw buurt in het kort</div>
         <span class="thuis-block-arrow">${I.arrow_right}</span>
       </div>
     `;
