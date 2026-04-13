@@ -390,24 +390,26 @@ window.App = window.App || {};
     return R * 2 * Math.asin(Math.sqrt(a));
   }
 
-  const _thuisCache = {
-    addrKey: null,
-    stats: undefined,
-    nl: undefined,
-    news: undefined,
-    publicaties: undefined,
-    voorzieningen: undefined,
-  };
-
-  function resetThuisCache(addrKey) {
-    _thuisCache.addrKey = addrKey;
-    _thuisCache.stats = undefined;
-    _thuisCache.nl = undefined;
-    _thuisCache.news = undefined;
-    _thuisCache.publicaties = undefined;
-    _thuisCache.voorzieningen = undefined;
-  }
-
+const _thuisCache = {
+  addrKey: null,
+  stats: undefined,
+  nl: undefined,
+  news: undefined,
+  publicaties: undefined,
+  voorzieningen: undefined,
+  vandaag: undefined,  // NIEUW: { items: [...allItems...] }
+};
+ 
+function resetThuisCache(addrKey) {
+  _thuisCache.addrKey = addrKey;
+  _thuisCache.stats = undefined;
+  _thuisCache.nl = undefined;
+  _thuisCache.news = undefined;
+  _thuisCache.publicaties = undefined;
+  _thuisCache.voorzieningen = undefined;
+  _thuisCache.vandaag = undefined;  // NIEUW
+}
+  
   function buildStatsPreview(stats, nl) {
     if (!stats || !nl) return [];
     const scored = [];
@@ -603,6 +605,52 @@ window.App = window.App || {};
     return block;
   }
 
+  function renderVandaagBlock(vandaag) {
+  // Block verbergen als geen items (alleen tonen tijdens loading of als er iets is)
+  const block = el('section', 'thuis-block thuis-vandaag');
+ 
+  const today = new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+  block.innerHTML = `
+    <div class="thuis-vandaag-header">
+      <div class="thuis-vandaag-label">Vandaag in jouw buurt</div>
+      <div class="thuis-vandaag-date">${today.charAt(0).toUpperCase() + today.slice(1)}</div>
+    </div>
+  `;
+ 
+  if (vandaag === undefined) {
+    // Skeleton
+    const list = el('div', 'thuis-vandaag-list');
+    for (let i = 0; i < 3; i++) list.appendChild(el('div', 'thuis-vandaag-item skeleton-row'));
+    block.appendChild(list);
+    return block;
+  }
+ 
+  if (!vandaag || !vandaag.items || vandaag.items.length === 0) {
+    block.appendChild(el('div', 'thuis-vandaag-empty', 'Niks bijzonders vandaag.'));
+    return block;
+  }
+ 
+  const list = el('div', 'thuis-vandaag-list');
+  for (const item of vandaag.items) {
+    const row = el('div', `thuis-vandaag-item urgency-${item.urgency || 'info'}`);
+    const iconHtml = item.icon && I[item.icon] ? `<span class="thuis-vandaag-icon">${I[item.icon]}</span>` : '';
+    row.innerHTML = `
+      ${iconHtml}
+      <div class="thuis-vandaag-text">
+        <div class="thuis-vandaag-title">${escapeHtml(item.title)}</div>
+        ${item.subtitle ? `<div class="thuis-vandaag-subtitle">${escapeHtml(item.subtitle)}</div>` : ''}
+      </div>
+    `;
+    if (item.tapAction) {
+      row.classList.add('thuis-vandaag-clickable');
+      row.addEventListener('click', item.tapAction);
+    }
+    list.appendChild(row);
+  }
+  block.appendChild(list);
+  return block;
+}
+
   function loadThuisData(addr, stats, nl) {
     const addrKey = addr.bag?.nummeraanduidingId || `${addr.coords?.lat},${addr.coords?.lng}`;
     if (_thuisCache.addrKey !== addrKey) resetThuisCache(addrKey);
@@ -644,6 +692,27 @@ window.App = window.App || {};
       })());
     }
 
+    if (_thuisCache.vandaag === undefined) {
+  tasks.push((async () => {
+    try {
+      const allItems = [];
+      // Sequentieel om volgorde te garanderen, maar elke fetcher mag faillen
+      for (const source of window.App.vandaag.SOURCES) {
+        try {
+          const result = await source.fetch(addr);
+          if (result && result.items) allItems.push(...result.items);
+        } catch (e) {
+          console.error(`[vandaag ${source.key}]`, e);
+        }
+      }
+      _thuisCache.vandaag = { items: allItems };
+    } catch (e) {
+      console.error('[vandaag]', e);
+      _thuisCache.vandaag = null;
+    }
+  })());
+}
+
     return tasks;
   }
 
@@ -661,13 +730,14 @@ window.App = window.App || {};
 
     const blocksEl = wrap.querySelector('#thuis-blocks');
 
-    function rerender() {
-      blocksEl.innerHTML = '';
-      blocksEl.appendChild(renderStatsPreviewBlock(_thuisCache.stats, _thuisCache.nl, () => handlers.onTab('buurt')));
-      blocksEl.appendChild(renderDichtbijBlock(_thuisCache.voorzieningen, () => handlers.onTab('kaart')));
-      blocksEl.appendChild(renderNieuwsBlock(_thuisCache.news, () => handlers.onTab('nieuws')));
-      blocksEl.appendChild(renderPublicatiesBlock(_thuisCache.publicaties, () => handlers.onTab('meldingen')));
-    }
+function rerender() {
+  blocksEl.innerHTML = '';
+  blocksEl.appendChild(renderVandaagBlock(_thuisCache.vandaag));  // NIEUW: bovenaan
+  blocksEl.appendChild(renderStatsPreviewBlock(_thuisCache.stats, _thuisCache.nl, () => handlers.onTab('buurt')));
+  blocksEl.appendChild(renderDichtbijBlock(_thuisCache.voorzieningen, () => handlers.onTab('kaart')));
+  blocksEl.appendChild(renderNieuwsBlock(_thuisCache.news, () => handlers.onTab('nieuws')));
+  blocksEl.appendChild(renderPublicatiesBlock(_thuisCache.publicaties, () => handlers.onTab('meldingen')));
+}
 
     rerender();
 
