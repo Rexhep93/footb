@@ -156,7 +156,7 @@ window.App = window.App || {};
       { id: 'buurt', label: 'Buurt', icon: I.nav_neighbourhood },
       { id: 'kaart', label: 'Kaart', icon: I.nav_map },
       { id: 'nieuws', label: 'Nieuws', icon: I.nav_news },
-      { id: 'meldingen', label: 'Meldingen', icon: I.nav_bell },
+      { id: 'meldingen', label: 'Publicaties', icon: I.nav_bell },
     ];
     const nav = el('nav', 'bottom-nav');
     const inner = el('div', 'bottom-nav-inner');
@@ -231,7 +231,7 @@ window.App = window.App || {};
       <h2 class="sheet-title">Instellingen</h2>
       <div class="sheet-item" data-action="change"><span class="sheet-item-label">Wijzig mijn buurt</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
       <div class="sheet-item"><span class="sheet-item-label">Voeg een buurt toe</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
-      <div class="sheet-item"><span class="sheet-item-label">Meldingen</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
+      <div class="sheet-item"><span class="sheet-item-label">Publicaties</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
       <div class="sheet-item"><span class="sheet-item-label">Feedback</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>
       <div class="sheet-item"><span class="sheet-item-label">De kleine lettertjes</span><span class="sheet-item-arrow">${I.arrow_right}</span></div>`;
     sheetRoot.appendChild(backdrop);
@@ -370,7 +370,7 @@ const _meldingenState = {
     const wrap = el('div', 'container meldingen-wrap');
     wrap.innerHTML = `
       <div class="meldingen-header">
-        <div class="meldingen-title">Bekendmakingen</div>
+        <div class="meldingen-title">Publicaties</div>
         <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties binnen een straal rondom jouw adres</div>
       </div>
 
@@ -451,7 +451,7 @@ const _meldingenState = {
 
     function renderList() {
       if (_meldingenState.error && _meldingenState.records.length === 0) {
-        listEl.innerHTML = '<div class="state-msg">Bekendmakingen tijdelijk niet beschikbaar.</div>';
+        listEl.innerHTML = '<div class="state-msg">Publicaties tijdelijk niet beschikbaar.</div>';
         subEl.textContent = '';
         moreBtn.style.display = 'none';
         return;
@@ -463,7 +463,7 @@ const _meldingenState = {
         return;
       }
       if (_meldingenState.records.length === 0) {
-        listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen binnen ${formatRadius(_meldingenState.radiusM)}.</div>`;
+        listEl.innerHTML = `<div class="state-msg">Geen publicaties binnen ${formatRadius(_meldingenState.radiusM)}.</div>`;
         subEl.textContent = '';
         moreBtn.style.display = 'none';
         return;
@@ -557,9 +557,9 @@ const _meldingenState = {
       </section>
 
       <section class="thuis-block">
-        <div class="thuis-block-title">Meldingen</div>
-        <div class="thuis-block-body">Binnenkort: officiële bekendmakingen uit jouw omgeving.</div>
-        <button class="thuis-link" data-go="meldingen">Bekijk alle meldingen →</button>
+        <div class="thuis-block-title">Publicaties</div>
+        <div class="thuis-block-body">Binnenkort: officiële publicaties uit jouw omgeving.</div>
+        <button class="thuis-link" data-go="meldingen">Bekijk alle publicaties →</button>
       </section>
 
       <section class="thuis-block">
