@@ -109,7 +109,7 @@ window.App = window.App || {};
     if (diffHours < 24) return `${Math.round(diffHours)} uur geleden`;
     const diffDays = Math.floor(diffHours / 24);
     if (diffDays < 7) return `${diffDays} dag${diffDays > 1 ? 'en' : ''} geleden`;
-    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' });
+    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
   }
 
   window.App.meldingen = { fetchPage, formatDate, PAGE_SIZE };
