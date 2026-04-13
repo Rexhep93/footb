@@ -3,12 +3,13 @@
 
   let currentAddr = null;
   let currentStats = null;
+  let currentNl = null;
   let activeTab = 'thuis';
 
   const handlers = {
     onTab(tab) {
       activeTab = tab;
-      render.shell(activeTab, currentAddr, currentStats, handlers);
+      render.shell(activeTab, currentAddr, currentStats, currentNl, handlers);
     },
     onSettings() {
       render.openSettings(startOnboarding);
@@ -20,12 +21,22 @@
     catch (e) { console.error(e); return false; }
   }
 
+  async function loadNl() {
+    try { return await cbs.getNlAverages(); }
+    catch (e) { console.error(e); return null; }
+  }
+
   async function showShell(addr) {
     currentAddr = addr;
     currentStats = null;
-    render.shell(activeTab, currentAddr, currentStats, handlers);
-    currentStats = await loadStats(addr);
-    render.shell(activeTab, currentAddr, currentStats, handlers);
+    currentNl = null;
+    render.shell(activeTab, currentAddr, currentStats, currentNl, handlers);
+
+    // Stats en NL parallel laden, rerender wanneer beide klaar zijn
+    const [stats, nl] = await Promise.all([loadStats(addr), loadNl()]);
+    currentStats = stats;
+    currentNl = nl;
+    render.shell(activeTab, currentAddr, currentStats, currentNl, handlers);
   }
 
   function startOnboarding() {
