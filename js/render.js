@@ -337,6 +337,145 @@ window.App = window.App || {};
     }
   }
 
+  // Module-level state voor meldingen (overleeft tab-switches)
+  const _meldingenState = {
+    gemeente: null,
+    page: 1,
+    total: 0,
+    records: [],
+    buurtOnly: false,
+    loading: false,
+    error: null
+  };
+ 
+  async function renderMeldingenTab(content, addr) {
+    const gemeente = addr.municipality?.name;
+    const postcodePrefix = addr.postcode ? String(addr.postcode).replace(/\s/g, '').slice(0, 4) : null;
+ 
+    // Reset state als gemeente veranderd is
+    if (_meldingenState.gemeente !== gemeente) {
+      _meldingenState.gemeente = gemeente;
+      _meldingenState.page = 1;
+      _meldingenState.total = 0;
+      _meldingenState.records = [];
+      _meldingenState.buurtOnly = false;
+      _meldingenState.error = null;
+    }
+ 
+    const wrap = el('div', 'container meldingen-wrap');
+    wrap.innerHTML = `
+      <div class="meldingen-header">
+        <div class="meldingen-title">Bekendmakingen</div>
+        <div class="meldingen-sub" id="meldingen-sub">Officiële publicaties uit ${gemeente || 'jouw gemeente'}</div>
+      </div>
+      ${postcodePrefix ? `
+        <label class="meldingen-toggle">
+          <input type="checkbox" id="meldingen-buurt-toggle" ${_meldingenState.buurtOnly ? 'checked' : ''}>
+          <span>Alleen postcode ${postcodePrefix}</span>
+        </label>
+      ` : ''}
+      <div id="meldingen-list"></div>
+      <button class="btn meldingen-more" id="meldingen-more" style="display:none">Meer laden</button>
+    `;
+    content.appendChild(wrap);
+ 
+    if (!gemeente) {
+      wrap.querySelector('#meldingen-sub').textContent = 'Gemeentegegevens ontbreken. Voer je adres opnieuw in via Instellingen.';
+      return;
+    }
+ 
+    const listEl = wrap.querySelector('#meldingen-list');
+    const subEl = wrap.querySelector('#meldingen-sub');
+    const moreBtn = wrap.querySelector('#meldingen-more');
+    const toggle = wrap.querySelector('#meldingen-buurt-toggle');
+ 
+    function renderList() {
+      const filtered = _meldingenState.buurtOnly && postcodePrefix
+        ? _meldingenState.records.filter(r => r.postcodePrefix === postcodePrefix)
+        : _meldingenState.records;
+ 
+      if (_meldingenState.error && _meldingenState.records.length === 0) {
+        listEl.innerHTML = '<div class="state-msg">Bekendmakingen tijdelijk niet beschikbaar.</div>';
+        subEl.textContent = '';
+        moreBtn.style.display = 'none';
+        return;
+      }
+ 
+      if (_meldingenState.records.length === 0 && _meldingenState.loading) {
+        listEl.innerHTML = '<div class="state-msg">Laden…</div>';
+        return;
+      }
+ 
+      if (filtered.length === 0) {
+        if (_meldingenState.buurtOnly) {
+          listEl.innerHTML = `<div class="state-msg">Geen bekendmakingen in postcode ${postcodePrefix}. Laad meer of zet de filter uit.</div>`;
+        } else {
+          listEl.innerHTML = '<div class="state-msg">Geen bekendmakingen gevonden.</div>';
+        }
+      } else {
+        listEl.innerHTML = filtered.map(r => `
+          <a class="melding-card" href="${r.url}" target="_blank" rel="noopener noreferrer">
+            <div class="melding-meta">
+              <span class="melding-type">${r.typeLabel}</span>
+              <span class="melding-date">${window.App.meldingen.formatDate(r.date)}</span>
+            </div>
+            <div class="melding-title">${escapeHtml(r.title)}</div>
+            ${r.location ? `<div class="melding-loc">${escapeHtml(r.location)}</div>` : ''}
+          </a>
+        `).join('');
+      }
+ 
+      // Sub + more button
+      if (_meldingenState.buurtOnly) {
+        subEl.textContent = `${filtered.length} in jouw buurt (van ${_meldingenState.records.length} geladen)`;
+      } else {
+        subEl.textContent = `${_meldingenState.records.length} van ${_meldingenState.total} bekendmakingen`;
+      }
+      const hasMore = _meldingenState.records.length < _meldingenState.total;
+      moreBtn.style.display = hasMore ? 'block' : 'none';
+      moreBtn.disabled = _meldingenState.loading;
+      moreBtn.textContent = _meldingenState.loading ? 'Laden…' : 'Meer laden';
+    }
+ 
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+ 
+    async function loadNext() {
+      if (_meldingenState.loading) return;
+      _meldingenState.loading = true;
+      renderList();
+      try {
+        const { records, total } = await window.App.meldingen.fetchPage(gemeente, _meldingenState.page);
+        _meldingenState.total = total;
+        _meldingenState.records = _meldingenState.records.concat(records);
+        _meldingenState.page += 1;
+        _meldingenState.error = null;
+      } catch (err) {
+        console.error('[meldingen]', err);
+        _meldingenState.error = err;
+      } finally {
+        _meldingenState.loading = false;
+        renderList();
+      }
+    }
+ 
+    if (toggle) {
+      toggle.addEventListener('change', e => {
+        _meldingenState.buurtOnly = e.target.checked;
+        renderList();
+      });
+    }
+    moreBtn.addEventListener('click', loadNext);
+ 
+    // Initial render
+    renderList();
+    if (_meldingenState.records.length === 0 && !_meldingenState.error) {
+      loadNext();
+    }
+  }
+
   function renderThuisTab(content, addr, handlers) {
   const wrap = el('div', 'container thuis-wrap');
   wrap.innerHTML = `
@@ -412,7 +551,7 @@ shell(activeTab, addr, stats, handlers) {
   else if (activeTab === 'buurt') renderBuurtTab(content, addr, stats);
   else if (activeTab === 'kaart') renderKaartTab(content, addr);
   else if (activeTab === 'nieuws') renderNieuwsTab(content, addr);
-  else if (activeTab === 'meldingen') renderPlaceholder(content, I.nav_bell, 'Meldingen', 'Hier komen officiële bekendmakingen en meldingen uit jouw omgeving.');
+  else if (activeTab === 'meldingen') renderMeldingenTab(content, addr);
 },
     openSettings(onChangeAddress) {
       renderSettingsSheet(null, onChangeAddress);
