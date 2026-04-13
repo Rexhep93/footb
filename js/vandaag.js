@@ -152,6 +152,7 @@ window.App = window.App || {};
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
 
+    const WEEK = 7 * DAY;
     return items
       .map(it => {
         const title = getXmlText(it, 'title');
@@ -163,7 +164,7 @@ window.App = window.App || {};
       })
       .filter(item => {
         if (!item.pubDate || isNaN(item.pubDate)) return false;
-        if (now - item.pubDate.getTime() > DAY) return false;
+        if (now - item.pubDate.getTime() > WEEK) return false;
         const link = (item.link || '').toLowerCase();
         if (link.includes('/gezocht/') || link.includes('/vermist/')) return false;
         if (item.category && /gezocht|vermist/i.test(item.category)) return false;
@@ -176,7 +177,9 @@ window.App = window.App || {};
     if (diffMin < 60) return `${diffMin} min geleden`;
     const diffH = Math.round(diffMin / 60);
     if (diffH < 24) return `${diffH} uur geleden`;
-    return 'gisteren';
+    const diffD = Math.round(diffH / 24);
+    if (diffD === 1) return 'gisteren';
+    return `${diffD} dagen geleden`;
   }
 
   async function fetchVeiligheid(addr) {
@@ -192,16 +195,18 @@ window.App = window.App || {};
     const gemSlug = slugifyGemeente(gemName);
     const url = `https://rss.politie.nl/rss/ab/gemeenten/${provSlug}/${gemSlug}.xml`;
 
+    // Direct naar proxy — politie.nl heeft geen CORS headers
     let xmlText = null;
     try {
-      const res = await fetch(url);
-      if (res.ok) xmlText = await res.text();
-    } catch (e) {}
-    if (!xmlText) {
-      try {
-        const res = await fetch(CORS_PROXY + encodeURIComponent(url));
-        if (res.ok) xmlText = await res.text();
-      } catch (e) { console.error('[politie] proxy failed', e); return null; }
+      const res = await fetch(CORS_PROXY + encodeURIComponent(url));
+      if (!res.ok) {
+        console.error('[politie] proxy status', res.status, 'url:', url);
+        return null;
+      }
+      xmlText = await res.text();
+    } catch (e) {
+      console.error('[politie] fetch failed', e);
+      return null;
     }
     if (!xmlText) return null;
 
@@ -215,8 +220,8 @@ window.App = window.App || {};
       items: topItems.map(item => ({
         icon: 'shield',
         title: item.title,
-        subtitle: `Politie ${gemName} · ${formatRelativeTime(item.pubDate)}`,
-        urgency: 'alert',
+        subtitle: `Politienieuws ${gemName} · ${formatRelativeTime(item.pubDate)}`,
+        urgency: 'info',
         tapAction: () => window.open(item.link, '_blank', 'noopener'),
       })),
     };
@@ -234,7 +239,7 @@ window.App = window.App || {};
   const SOURCES = [
     { key: 'buienradar', label: 'Weer', fetch: fetchBuienradar },
     { key: 'afval', label: 'Afval', fetch: fetchAfval },
-    { key: 'veiligheid', label: 'Veiligheid', fetch: fetchVeiligheid },
+    { key: 'veiligheid', label: 'Politienieuws', fetch: fetchVeiligheid },
     { key: 'wegwerk', label: 'Wegwerkzaamheden', fetch: fetchWegwerk },
     { key: 'nieuws', label: 'Nieuws', fetch: fetchLokaalNieuws },
     { key: 'publicaties', label: 'Publicaties', fetch: fetchPublicatiesImpact },
