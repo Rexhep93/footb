@@ -152,7 +152,6 @@ window.App = window.App || {};
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
 
-    const WEEK = 7 * DAY;
     return items
       .map(it => {
         const title = getXmlText(it, 'title');
@@ -164,7 +163,7 @@ window.App = window.App || {};
       })
       .filter(item => {
         if (!item.pubDate || isNaN(item.pubDate)) return false;
-        if (now - item.pubDate.getTime() > WEEK) return false;
+        if (now - item.pubDate.getTime() > DAY) return false;
         const link = (item.link || '').toLowerCase();
         if (link.includes('/gezocht/') || link.includes('/vermist/')) return false;
         if (item.category && /gezocht|vermist/i.test(item.category)) return false;
