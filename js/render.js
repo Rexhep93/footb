@@ -208,7 +208,6 @@ window.App = window.App || {};
     const lines = [];
     const computed = computeMetric(metric, stats, nl);
     if (!computed) return '<p>Geen gegevens beschikbaar.</p>';
-    }
 
     if (metric.key === 'inwoners' && has(stats.Mannen_6) && has(stats.Vrouwen_7)) {
       lines.push(`<p>Daarvan ${n(stats.Mannen_6)} man en ${n(stats.Vrouwen_7)} vrouw, verdeeld over ${n(stats.HuishoudensTotaal_29)} huishoudens.</p>`);
@@ -329,9 +328,6 @@ window.App = window.App || {};
     content.appendChild(sub);
 
     const container = el('div', 'container buurt-wrap');
-
-    console.log('[buurt] stats:', stats);
-    console.log('[buurt] inkomen raw:', stats?.GemiddeldInkomenPerInwoner_78, typeof stats?.GemiddeldInkomenPerInwoner_78);
     
     if (stats === null) {
       container.appendChild(el('div', 'state-msg', 'Buurtgegevens laden…'));
