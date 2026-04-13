@@ -26,16 +26,15 @@ window.App = window.App || {};
   // ============================================================
 
   function avgAge(s) {
-    const p0 = Number(s.k_0Tot15Jaar_8);
-    const p1 = Number(s.k_15Tot25Jaar_9);
-    const p2 = Number(s.k_25Tot45Jaar_10);
-    const p3 = Number(s.k_45Tot65Jaar_11);
-    const p4 = Number(s.k_65JaarOfOuder_12);
-    if ([p0, p1, p2, p3, p4].some(v => isNaN(v))) return null;
-    const totalPct = p0 + p1 + p2 + p3 + p4;
-    if (totalPct <= 0) return null;
-    // Gewogen gemiddelde van bin-middelpunten, genormaliseerd op som (~100)
-    return (p0 * 7.5 + p1 * 20 + p2 * 35 + p3 * 55 + p4 * 75) / totalPct;
+    const a0 = Number(s.k_0Tot15Jaar_8);
+    const a1 = Number(s.k_15Tot25Jaar_9);
+    const a2 = Number(s.k_25Tot45Jaar_10);
+    const a3 = Number(s.k_45Tot65Jaar_11);
+    const a4 = Number(s.k_65JaarOfOuder_12);
+    if ([a0, a1, a2, a3, a4].some(v => isNaN(v))) return null;
+    const total = a0 + a1 + a2 + a3 + a4;
+    if (total <= 0) return null;
+    return (a0 * 7.5 + a1 * 20 + a2 * 35 + a3 * 55 + a4 * 75) / total;
   }
 
   function buildCharacterLabels(s) {
@@ -222,9 +221,14 @@ window.App = window.App || {};
       lines.push(`<p>Daarvan ${n(stats.Mannen_6)} man en ${n(stats.Vrouwen_7)} vrouw, verdeeld over ${n(stats.HuishoudensTotaal_29)} huishoudens.</p>`);
     }
     if (metric.key === 'leeftijd') {
+      const total = Number(stats.AantalInwoners_5);
       const parts = [];
-      if (has(stats.k_0Tot15Jaar_8)) parts.push(`${pct(stats.k_0Tot15Jaar_8)} jonger dan 15`);
-      if (has(stats.k_65JaarOfOuder_12)) parts.push(`${pct(stats.k_65JaarOfOuder_12)} 65-plus`);
+      if (has(stats.k_0Tot15Jaar_8) && total > 0) {
+        parts.push(`${pct((Number(stats.k_0Tot15Jaar_8) / total) * 100)} jonger dan 15`);
+      }
+      if (has(stats.k_65JaarOfOuder_12) && total > 0) {
+        parts.push(`${pct((Number(stats.k_65JaarOfOuder_12) / total) * 100)} 65-plus`);
+      }
       if (parts.length) lines.push(`<p>${parts.join(', ')}.</p>`);
     }
     if (metric.key === 'inkomen') {
